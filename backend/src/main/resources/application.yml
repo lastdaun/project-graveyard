@@ -20,7 +20,7 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:QBjpvywLlWAFYOqvFXkK00nc4LL36DPy3ZofTST3kv7_project_graveyard_secret_key_2026}
+    secret: ${JWT_SECRET:M2Y1Zjc4OTBhMTJiMzRjNTZkN2U4ZjlhMDFiMmNkN2U4ZjlhMDFiMmNkN2U4ZjlhMDFiMmNkN2U4ZjlhMDFiMg==}
     expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
