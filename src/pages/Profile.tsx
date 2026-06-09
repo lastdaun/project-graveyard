@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,18 +14,40 @@ const joinedProjects = mockProjects.slice(3, 5);
 
 const Profile = () => {
   const { t } = useLanguage();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Lỗi parse user", e);
+      }
+    }
+  }, []);
+
+  const displayName = user?.fullName || "Alex Chen";
+  const userInitials = displayName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase() || "AC";
 
   return (
     <div className="min-h-screen">
       <Navbar />
       <div className="container max-w-4xl py-10">
         <div className="mb-8 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">AC</div>
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">
+            {userInitials}
+          </div>
           <div className="flex-1">
-            <h1 className="font-display text-2xl font-bold">Alex Chen</h1>
-            <p className="text-muted-foreground">Khoa học Máy tính • Đại học Công nghệ</p>
+            <h1 className="font-display text-2xl font-bold">{displayName}</h1>
+            <p className="text-muted-foreground">{user?.email || "Khoa học Máy tính • Đại học Công nghệ"}</p>
             <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" /> TP. Hồ Chí Minh
+              <MapPin className="h-3.5 w-3.5" /> {user?.location || "TP. Hồ Chí Minh"}
             </div>
           </div>
           <Button variant="outline" size="sm" className="gap-1">
