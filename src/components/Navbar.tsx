@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Skull, Menu, X, Globe } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -7,7 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const Navbar = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -43,7 +43,6 @@ const Navbar = () => {
     <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-display text-xl font-bold">
-          <Skull className="h-6 w-6 text-primary" />
           <span>Project Graveyard</span>
         </Link>
 
@@ -65,21 +64,13 @@ const Navbar = () => {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <button
-            onClick={() => setLang(lang === "vi" ? "en" : "vi")}
-            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Globe className="h-4 w-4" />
-            {lang === "vi" ? "EN" : "VI"}
-          </button>
-          
           {user ? (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-muted-foreground">
-                {lang === "vi" ? `Xin chào, ${user.fullName}` : `Hello, ${user.fullName}`}
+                Xin chào, {user.fullName}
               </span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
-                {lang === "vi" ? "Đăng xuất" : "Logout"}
+                Đăng xuất
               </Button>
             </div>
           ) : (
@@ -121,22 +112,13 @@ const Navbar = () => {
             </Link>
           ))}
           <div className="mt-2 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setLang(lang === "vi" ? "en" : "vi")}
-                className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
-              >
-                <Globe className="h-4 w-4" />
-                {lang === "vi" ? "EN" : "VI"}
-              </button>
-            </div>
             {user ? (
               <div className="flex flex-col gap-2 border-t pt-2 w-full">
                 <span className="text-sm font-medium text-muted-foreground py-2 px-1">
-                  {lang === "vi" ? `Xin chào, ${user.fullName}` : `Hello, ${user.fullName}`}
+                  Xin chào, {user.fullName}
                 </span>
                 <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
-                  {lang === "vi" ? "Đăng xuất" : "Logout"}
+                  Đăng xuất
                 </Button>
               </div>
             ) : (

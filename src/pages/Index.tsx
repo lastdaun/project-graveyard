@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Lightbulb, Users, Rocket, Star, Quote } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowRight, Lightbulb, Users, Rocket, Star, Quote, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProjectCard from "@/components/ProjectCard";
-import { mockProjects } from "@/data/mockData";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { ApiProject, ApiResponse, ApiPage } from "@/types/api";
+import { adaptApiProject } from "@/lib/api";
+import type { Project } from "@/data/mockData";
 
 const testimonials = [
   { name: "Emma W.", role: { vi: "Lập trình viên", en: "Developer" }, text: { vi: "Mình có một app code dở nằm trên GitHub mấy tháng. Chỉ trong một tuần trên Project Graveyard, mình đã tìm được designer và marketer để hoàn thành nó.", en: "I had an unfinished app on GitHub for months. Within a week on Project Graveyard, I found a designer and marketer to complete it." } },
@@ -14,7 +17,19 @@ const testimonials = [
 ];
 
 const Landing = () => {
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
+  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/projects?size=3&sort=createdAt,desc")
+      .then((r) => r.json())
+      .then((body: ApiResponse<ApiPage<ApiProject>>) => {
+        setFeaturedProjects((body.data?.content ?? []).map(adaptApiProject));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingFeatured(false));
+  }, []);
 
   const steps = [
     { icon: Lightbulb, title: t("landing.step1.title"), desc: t("landing.step1.desc") },
@@ -44,17 +59,8 @@ const Landing = () => {
               className="mb-6 text-4xl md:text-6xl font-bold tracking-tight text-foreground"
               style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}
             >
-              {lang === 'vi' ? (
-                <>
-                  Biến dự án bỏ dở thành <br className="hidden md:block" />
-                  <span className="text-primary" style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}>tài sản giá trị</span>
-                </>
-              ) : (
-                <>
-                  Turn abandoned projects into <br className="hidden md:block" />
-                  <span className="text-primary" style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}>valuable assets</span>
-                </>
-              )}
+              Biến dự án bỏ dở thành <br className="hidden md:block" />
+              <span className="text-primary" style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}>tài sản giá trị</span>
             </h1>
             <p className="mb-8 text-lg text-muted-foreground md:text-xl">{t("landing.subtitle")}</p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -109,11 +115,19 @@ const Landing = () => {
               {t("landing.featured.all")} <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {mockProjects.slice(0, 3).map((p) => (
-              <ProjectCard key={p.id} project={p} />
-            ))}
-          </div>
+          {loadingFeatured ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : featuredProjects.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {featuredProjects.map((p) => (
+                <ProjectCard key={p.id} project={p} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-10">Chưa có dự án nào. Hãy là người đầu tiên đăng!</p>
+          )}
         </div>
       </section>
 
@@ -145,14 +159,14 @@ const Landing = () => {
             {testimonials.map((item, i) => (
               <div key={i} className="rounded-xl border bg-card p-6 card-hover">
                 <Quote className="mb-3 h-5 w-5 text-primary/40" />
-                <p className="mb-4 text-sm text-muted-foreground">{item.text[lang]}</p>
+                <p className="mb-4 text-sm text-muted-foreground">{item.text.vi}</p>
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                     {item.name.charAt(0)}
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.role[lang]}</p>
+                    <p className="text-xs text-muted-foreground">{item.role.vi}</p>
                   </div>
                 </div>
               </div>

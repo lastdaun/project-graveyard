@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Users, Mail, Calendar, Flag, Handshake, DollarSign } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Users, Mail, Calendar, Flag, Handshake, DollarSign, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -7,10 +8,12 @@ import {
 } from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { mockProjects, collaborationBadge, getCollabLabel } from "@/data/mockData";
+import { collaborationBadge, getCollabLabel } from "@/data/mockData";
+import type { Project } from "@/data/mockData";
 import { toast } from "sonner";
-import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { ApiProject, ApiResponse } from "@/types/api";
+import { adaptApiProject } from "@/lib/api";
 
 const statusColor: Record<string, string> = {
   "Ý tưởng": "tag-warning",
@@ -20,13 +23,47 @@ const statusColor: Record<string, string> = {
 
 const ProjectDetails = () => {
   const { id } = useParams();
-  const project = mockProjects.find((p) => p.id === id);
-  const [reportOpen, setReportOpen] = useState(false);
   const { t } = useLanguage();
+  const [project, setProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const reportReasons = [t("project.report.r1"), t("project.report.r2"), t("project.report.r3")];
 
-  if (!project) {
+  useEffect(() => {
+    if (!id) return;
+    setIsLoading(true);
+    setNotFound(false);
+
+    fetch(`/api/projects/${id}`)
+      .then(async (res) => {
+        if (res.status === 404) { setNotFound(true); return; }
+        const body: ApiResponse<ApiProject> = await res.json();
+        if (body.data) setProject(adaptApiProject(body.data));
+        else setNotFound(true);
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setIsLoading(false));
+  }, [id]);
+
+  const handleReport = (reason: string) => {
+    toast.success(`${t("project.report")}: "${reason}"`);
+    setReportOpen(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="flex items-center justify-center py-32">
+          <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !project) {
     return (
       <div className="min-h-screen">
         <Navbar />
@@ -37,11 +74,6 @@ const ProjectDetails = () => {
       </div>
     );
   }
-
-  const handleReport = (reason: string) => {
-    toast.success(`${t("project.report")}: "${reason}"`);
-    setReportOpen(false);
-  };
 
   const badge = collaborationBadge[project.collaborationMode];
   const collabLabel = getCollabLabel(project);
@@ -60,9 +92,9 @@ const ProjectDetails = () => {
           <div className="lg:col-span-2 space-y-6">
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className={`tag ${statusColor[project.status]}`}>{project.status}</span>
+                <span className={`tag ${statusColor[project.status] ?? "tag-muted"}`}>{project.status}</span>
                 <span className="tag tag-muted">{project.category}</span>
-                <span className={`tag ${badge.className}`}>{collabLabel}</span>
+                <span className={`tag ${badge?.className ?? "tag-muted"}`}>{collabLabel}</span>
                 <Dialog open={reportOpen} onOpenChange={setReportOpen}>
                   <DialogTrigger asChild>
                     <button className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
@@ -105,23 +137,27 @@ const ProjectDetails = () => {
               <Progress value={project.progress} className="h-2" />
             </div>
 
-            <div>
-              <h2 className="mb-3 font-semibold">{t("project.techstack")}</h2>
-              <div className="flex flex-wrap gap-2">
-                {project.techStack.map((tech) => (
-                  <span key={tech} className="rounded-lg border bg-card px-3 py-1.5 text-sm font-medium font-mono">{tech}</span>
-                ))}
+            {project.techStack && project.techStack.length > 0 && (
+              <div>
+                <h2 className="mb-3 font-semibold">{t("project.techstack")}</h2>
+                <div className="flex flex-wrap gap-2">
+                  {project.techStack.map((tech) => (
+                    <span key={tech} className="rounded-lg border bg-card px-3 py-1.5 text-sm font-medium font-mono">{tech}</span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div>
-              <h2 className="mb-3 font-semibold">{t("project.skills")}</h2>
-              <div className="flex flex-wrap gap-2">
-                {project.skillsNeeded.map((s) => (
-                  <span key={s} className="tag tag-primary">{s}</span>
-                ))}
+            {project.skillsNeeded && project.skillsNeeded.length > 0 && (
+              <div>
+                <h2 className="mb-3 font-semibold">{t("project.skills")}</h2>
+                <div className="flex flex-wrap gap-2">
+                  {project.skillsNeeded.map((s) => (
+                    <span key={s} className="tag tag-primary">{s}</span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -132,7 +168,7 @@ const ProjectDetails = () => {
                 {t("project.collab.title")}
               </div>
               <div className="rounded-lg bg-muted/60 p-4 space-y-2">
-                <span className={`tag ${badge.className} text-sm`}>{collabLabel}</span>
+                <span className={`tag ${badge?.className ?? "tag-muted"} text-sm`}>{collabLabel}</span>
                 {isPaid && (
                   <div className="flex items-center gap-1.5 text-2xl font-bold text-foreground">
                     {(project.price ?? 0).toLocaleString("vi-VN")}₫
@@ -171,7 +207,7 @@ const ProjectDetails = () => {
 
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>{t("project.postedon")} {project.createdAt}</span>
+                <span>{t("project.postedon")} {project.createdAt ? new Date(project.createdAt).toLocaleDateString("vi-VN") : ""}</span>
               </div>
 
               <div className="space-y-2">

@@ -1,25 +1,18 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useCallback, type ReactNode } from "react";
 
-import translations, { type Lang } from "@/i18n/translations";
+import translations from "@/i18n/translations";
 
 interface LanguageContextType {
-  lang: Lang;
-  setLang: (lang: Lang) => void;
   t: (key: string) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [lang, setLang] = useState<Lang>("vi");
-
-  const t = useCallback(
-    (key: string) => translations[key]?.[lang] ?? key,
-    [lang],
-  );
+  const t = useCallback((key: string) => translations[key]?.vi ?? key, []);
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t }}>
+    <LanguageContext.Provider value={{ t }}>
       {children}
     </LanguageContext.Provider>
   );

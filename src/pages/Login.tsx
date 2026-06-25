@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Skull } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,7 +59,6 @@ const Login = () => {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link to="/" className="inline-flex items-center gap-2 font-display text-xl font-bold">
-            <Skull className="h-6 w-6 text-primary" />
             Project Graveyard
           </Link>
         </div>

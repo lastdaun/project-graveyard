@@ -46,7 +46,7 @@ const banks = [
 const quickAmounts = [50000, 100000, 500000];
 
 const Transactions = () => {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [tab, setTab] = useState("all");
@@ -219,7 +219,7 @@ const Transactions = () => {
                       <TableRow key={tx.id}>
                         <TableCell className="font-mono text-xs">#{tx.id}</TableCell>
                         <TableCell className="text-sm">{tx.date}</TableCell>
-                        <TableCell className="max-w-[240px] text-sm">{tx.description[lang]}</TableCell>
+                        <TableCell className="max-w-[240px] text-sm">{tx.description.vi}</TableCell>
                         <TableCell className={`text-right font-semibold ${tx.type === "income" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                           {tx.type === "income" ? "+" : "−"}{fmt(tx.amount)}
                         </TableCell>

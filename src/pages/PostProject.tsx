@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,9 +12,31 @@ import type { CollaborationMode } from "@/data/mockData";
 import PricingCalculator from "@/components/PricingCalculator";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { AlertTriangle } from "lucide-react";
+import { apiFetch, isAuthenticated } from "@/lib/api";
+
+const COLLAB_MODE_MAP: Record<string, string> = {
+  "Free Collaboration": "FREE_COLLABORATION",
+  "Profit Sharing": "PROFIT_SHARING",
+  "Sell Usage Rights": "SELL_USAGE_RIGHTS",
+  "Find Co-founder": "FIND_COFOUNDER",
+};
+
+const STATUS_MAP: Record<string, string> = {
+  "Ý tưởng": "IDEA",
+  "Nguyên mẫu": "PROTOTYPE",
+  "Đang phát triển": "DEVELOPING",
+};
+
+const CATEGORY_MAP: Record<string, string> = {
+  IT: "IT",
+  Design: "DESIGN",
+  Marketing: "MARKETING",
+  Startup: "STARTUP",
+};
 
 const PostProject = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -26,10 +49,81 @@ const PostProject = () => {
   const [priceMode, setPriceMode] = useState<"recommended" | "custom" | "">("");
   const [customPrice, setCustomPrice] = useState("");
   const [equitySplit, setEquitySplit] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success(t("post.success"));
+
+    if (!isAuthenticated()) {
+      toast.error("Bạn cần đăng nhập để đăng dự án");
+      navigate("/login");
+      return;
+    }
+
+    if (!category || !status || !collabMode) {
+      toast.error("Vui lòng điền đầy đủ danh mục, trạng thái và hình thức hợp tác");
+      return;
+    }
+
+    if (collabMode === "Sell Usage Rights" && !price) {
+      toast.error("Vui lòng chọn hoặc nhập giá bán cho dự án");
+      return;
+    }
+
+    const skillsArray = skills
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const payload: Record<string, unknown> = {
+      title,
+      description,
+      category: CATEGORY_MAP[category] ?? category.toUpperCase(),
+      status: STATUS_MAP[status] ?? status.toUpperCase(),
+      collaborationMode: COLLAB_MODE_MAP[collabMode] ?? collabMode,
+      skillsNeeded: skillsArray,
+      teamSize: Number(teamSize) || 1,
+      progress: 0,
+    };
+
+    if (collabMode === "Sell Usage Rights" && price) {
+      payload.price = Number(price);
+    }
+
+    if (collabMode === "Profit Sharing" && equitySplit) {
+      payload.equitySplit = Number(equitySplit);
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await apiFetch("/api/projects", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const msg = data?.message || data?.error || "Đăng dự án thất bại";
+        throw new Error(msg);
+      }
+
+      toast.success(t("post.success"));
+      navigate("/explore");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Đã xảy ra lỗi khi kết nối máy chủ";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePriceApply = (p: number) => {
@@ -209,7 +303,9 @@ const PostProject = () => {
             </div>
           </div>
 
-          <Button type="submit" size="lg" className="w-full">{t("post.submit")}</Button>
+          <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Đang đăng..." : t("post.submit")}
+          </Button>
         </form>
       </div>
       <Footer />
