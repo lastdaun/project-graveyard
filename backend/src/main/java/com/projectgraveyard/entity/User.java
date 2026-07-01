@@ -1,7 +1,7 @@
 package com.projectgraveyard.entity;
 
 import com.projectgraveyard.enums.AccountType;
-import com.projectgraveyard.enums.UserRole;
+import com.projectgraveyard.enums.Role;
 import com.projectgraveyard.util.StringListConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -41,7 +41,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserRole role;
+    private Role role;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

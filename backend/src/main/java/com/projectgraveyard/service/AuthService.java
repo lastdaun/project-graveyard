@@ -7,7 +7,7 @@ import com.projectgraveyard.dto.response.UserResponse;
 import com.projectgraveyard.entity.User;
 import com.projectgraveyard.enums.AccountType;
 import com.projectgraveyard.enums.ErrorCode;
-import com.projectgraveyard.enums.UserRole;
+import com.projectgraveyard.enums.Role;
 import com.projectgraveyard.exception.AppException;
 import com.projectgraveyard.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +38,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
-                .role(UserRole.USER)
+                .role(request.getRole())
                 .accountType(AccountType.FREE)
                 .verified(false)
                 .build();

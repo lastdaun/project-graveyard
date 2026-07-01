@@ -22,7 +22,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
            "AND (:category IS NULL OR p.category = :category) " +
            "AND (:status IS NULL OR p.status = :status) " +
            "AND (:collaborationMode IS NULL OR p.collaborationMode = :collaborationMode) " +
-           "AND (:creatorId IS NULL OR p.creator.id = :creatorId)")
+           "AND (:creatorId IS NULL OR p.creator.id = :creatorId) " +
+           "AND p.reviewStatus = com.projectgraveyard.enums.ReviewStatus.APPROVED")
     Page<Project> findProjects(
             @Param("search") String search,
             @Param("category") ProjectCategory category,

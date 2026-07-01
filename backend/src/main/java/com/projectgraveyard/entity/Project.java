@@ -1,8 +1,6 @@
 package com.projectgraveyard.entity;
 
-import com.projectgraveyard.enums.CollaborationMode;
-import com.projectgraveyard.enums.ProjectCategory;
-import com.projectgraveyard.enums.ProjectStatus;
+import com.projectgraveyard.enums.*;
 import com.projectgraveyard.util.StringListConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -66,6 +64,37 @@ public class Project {
     private Integer equitySplit;
 
     private boolean approved;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "seller_type")
+    private SellerType sellerType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "listing_type")
+    private ListingType listingType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "license_type")
+    private LicenseType licenseType;
+
+    @Column(name = "demo_url")
+    private String demoUrl;
+
+    @Column(name = "support_days")
+    private Integer supportDays;
+
+    @Column(name = "commission_rate")
+    private Double commissionRate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_status")
+    private ReviewStatus reviewStatus;
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason;
+
+    @Column(name = "sold_count")
+    private Integer soldCount;
 
     private LocalDateTime createdAt;
 
