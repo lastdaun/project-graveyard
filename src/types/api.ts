@@ -4,7 +4,7 @@ export type ApiCollaborationMode =
   | "SELL_USAGE_RIGHTS"
   | "FIND_COFOUNDER";
 
-export type ApiProjectCategory = "IT" | "DESIGN" | "MARKETING" | "STARTUP";
+export type ApiProjectCategory = "IT" | "STARTUP";
 
 export type ApiProjectStatus = "IDEA" | "PROTOTYPE" | "DEVELOPING";
 

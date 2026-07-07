@@ -10,14 +10,12 @@ import type { ApiProject, ApiResponse, ApiPage } from "@/types/api";
 import { adaptApiProject } from "@/lib/api";
 import type { Project } from "@/data/mockData";
 
-const CATEGORY_OPTIONS = ["Tất cả", "IT", "Design", "Marketing", "Startup"];
+const CATEGORY_OPTIONS = ["Tất cả", "IT", "Startup IT"];
 const STATUS_OPTIONS = ["Tất cả", "Ý tưởng", "Nguyên mẫu", "Đang phát triển"];
 
 const CATEGORY_API_MAP: Record<string, string> = {
   IT: "IT",
-  Design: "DESIGN",
-  Marketing: "MARKETING",
-  Startup: "STARTUP",
+  "Startup IT": "STARTUP",
 };
 
 const STATUS_API_MAP: Record<string, string> = {

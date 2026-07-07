@@ -23,8 +23,6 @@ export function isAuthenticated(): boolean {
 
 const CATEGORY_LABEL: Record<string, Project["category"]> = {
   IT: "IT",
-  DESIGN: "Design",
-  MARKETING: "Marketing",
   STARTUP: "Startup",
 };
 

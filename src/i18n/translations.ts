@@ -88,7 +88,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "post.status": { vi: "Tiến độ hiện tại", en: "Current Progress" },
   "post.status.ph": { vi: "Chọn trạng thái", en: "Select status" },
   "post.skills": { vi: "Kỹ năng yêu cầu", en: "Skills Needed" },
-  "post.skills.ph": { vi: "vd: React, UI/UX Design, Marketing (phân cách bằng dấu phẩy)", en: "e.g., React, UI/UX Design, Marketing (comma separated)" },
+  "post.skills.ph": { vi: "vd: React, Node.js, Python, Flutter (phân cách bằng dấu phẩy)", en: "e.g., React, Node.js, Python, Flutter (comma separated)" },
   "post.team": { vi: "Số thành viên cần tuyển", en: "Team Members Needed" },
   "post.collab.title": { vi: "Hình thức hợp tác", en: "Collaboration Mode" },
   "post.collab.question": { vi: "Bạn muốn hợp tác như thế nào?", en: "How would you like to collaborate?" },

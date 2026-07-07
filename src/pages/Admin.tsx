@@ -62,8 +62,8 @@ const revenueData = [
 ];
 
 const categoryData = [
-  { name: "IT & Phần mềm", value: 65, fill: "hsl(var(--primary))" },
-  { name: "Thiết kế", value: 35, fill: "hsl(var(--accent))" },
+  { name: "IT / Phần mềm", value: 75, fill: "hsl(var(--primary))" },
+  { name: "Startup IT", value: 25, fill: "hsl(var(--accent))" },
 ];
 
 const revenueChartConfig = {
@@ -71,8 +71,8 @@ const revenueChartConfig = {
 };
 
 const categoryChartConfig = {
-  it: { label: "IT & Phần mềm", color: "hsl(var(--primary))" },
-  design: { label: "Thiết kế", color: "hsl(var(--accent))" },
+  it: { label: "IT / Phần mềm", color: "hsl(var(--primary))" },
+  startup: { label: "Startup IT", color: "hsl(var(--accent))" },
 };
 
 const IT_LABELS: Record<string, string> = {
@@ -83,13 +83,6 @@ const IT_LABELS: Record<string, string> = {
   ai_ml: "AI / ML",
 };
 
-const DESIGN_LABELS: Record<string, string> = {
-  social_post: "Social post / banner",
-  logo_branding: "Logo / Branding",
-  ui_ux_full: "UI/UX full app",
-  motion_video: "Motion video",
-  "3d_model": "3D model / render",
-};
 
 const COMPLEXITY_LABELS: Record<string, string> = {
   a: "Simple", b: "Intermediate", c: "Multi-feature", d: "Real-time", e: "AI/Scalable",
@@ -165,7 +158,7 @@ const Admin = () => {
   };
 
   const updateItBase = (key: string, val: number) => setEditConfig((c) => ({ ...c, itBase: { ...c.itBase, [key]: val } }));
-  const updateDesignBase = (key: string, val: number) => setEditConfig((c) => ({ ...c, designBase: { ...c.designBase, [key]: val } }));
+
   const updateComplexity = (key: string, val: number) => setEditConfig((c) => ({ ...c, complexityPts: { ...c.complexityPts, [key]: val } }));
   const updateInnovation = (key: string, val: number) => setEditConfig((c) => ({ ...c, innovationPts: { ...c.innovationPts, [key]: val } }));
   const updateCheckPt = (val: number) => setEditConfig((c) => ({ ...c, checkPt: val }));
@@ -562,15 +555,6 @@ const Admin = () => {
                     <div key={key} className="flex items-center gap-3">
                       <Label className="w-36 text-sm shrink-0">{IT_LABELS[key]}</Label>
                       <Input type="number" value={val} onChange={(e) => updateItBase(key, Number(e.target.value))} className="tabular-nums" />
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-xl border bg-card p-5 space-y-4">
-                  <h3 className="font-sans font-semibold">{t("admin.pricing.designPrices")}</h3>
-                  {Object.entries(editConfig.designBase).map(([key, val]) => (
-                    <div key={key} className="flex items-center gap-3">
-                      <Label className="w-36 text-sm shrink-0">{DESIGN_LABELS[key]}</Label>
-                      <Input type="number" value={val} onChange={(e) => updateDesignBase(key, Number(e.target.value))} className="tabular-nums" />
                     </div>
                   ))}
                 </div>

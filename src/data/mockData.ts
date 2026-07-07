@@ -11,7 +11,7 @@ export interface Project {
   id: string;
   title: string;
   description: string;
-  category: "IT" | "Design" | "Marketing" | "Startup";
+  category: "IT" | "Startup";
   status: "Ý tưởng" | "Nguyên mẫu" | "Đang phát triển";
   skillsNeeded: string[];
   techStack: string[];
@@ -77,12 +77,12 @@ export const mockProjects: Project[] = [
   },
   {
     id: "3",
-    title: "BrandKit - Xây dựng thương hiệu cá nhân",
-    description: "Công cụ thiết kế giúp nhà sáng tạo tạo tài liệu thương hiệu cá nhân chuyên nghiệp bao gồm logo, danh thiếp và mẫu mạng xã hội.",
-    category: "Design",
+    title: "DevPortfolio - Nền tảng portfolio cho lập trình viên",
+    description: "Trình tạo portfolio kéo-thả dành riêng cho developer, tích hợp GitHub và hiển thị dự án, contribution graph, kỹ năng theo dạng interactive.",
+    category: "IT",
     status: "Ý tưởng",
-    skillsNeeded: ["Graphic Design", "Frontend Dev", "Copywriting"],
-    techStack: ["Figma", "React", "Canvas API"],
+    skillsNeeded: ["Frontend Dev", "Backend Dev", "UI/UX"],
+    techStack: ["Next.js", "Prisma", "Vercel", "GitHub API"],
     creator: { name: "Jordan Lee", avatar: "JL" },
     teamSize: 3,
     currentMembers: 1,
@@ -124,12 +124,12 @@ export const mockProjects: Project[] = [
   },
   {
     id: "6",
-    title: "PortfolioForge - Portfolio nhà sáng tạo",
-    description: "Trình tạo portfolio kéo-thả thiết kế riêng cho nhà sáng tạo với các mẫu cho nhiều ngành và xuất tương thích ATS.",
-    category: "Design",
+    title: "APIHub - Marketplace API mã nguồn mở",
+    description: "Nền tảng tổng hợp và chia sẻ các API mã nguồn mở, cho phép developer tìm kiếm, test trực tiếp và tích hợp API nhanh chóng.",
+    category: "IT",
     status: "Ý tưởng",
-    skillsNeeded: ["UI/UX", "Frontend Dev", "Illustration"],
-    techStack: ["Next.js", "Prisma", "Vercel"],
+    skillsNeeded: ["Backend Dev", "Frontend Dev", "DevOps"],
+    techStack: ["Next.js", "Prisma", "Vercel", "OpenAPI"],
     creator: { name: "Nina Patel", avatar: "NP" },
     teamSize: 3,
     currentMembers: 1,
@@ -139,12 +139,12 @@ export const mockProjects: Project[] = [
   },
   {
     id: "7",
-    title: "GreenMarket - Chợ bền vững",
-    description: "Chợ trực tuyến để mua, bán và trao đổi đồ second-hand và bền vững giữa các thành viên cộng đồng.",
-    category: "Marketing",
+    title: "GreenMarket - Chợ thương mại điện tử bền vững",
+    description: "Nền tảng e-commerce để mua, bán đồ second-hand với tính năng AI định giá tự động và xác minh chất lượng sản phẩm.",
+    category: "Startup",
     status: "Nguyên mẫu",
-    skillsNeeded: ["Digital Marketing", "Frontend Dev", "Photography"],
-    techStack: ["Vue.js", "Node.js", "MongoDB"],
+    skillsNeeded: ["Full Stack Dev", "Mobile Dev", "AI/ML"],
+    techStack: ["Vue.js", "Node.js", "MongoDB", "TensorFlow"],
     creator: { name: "Leo Zhang", avatar: "LZ" },
     teamSize: 4,
     currentMembers: 2,
@@ -170,10 +170,10 @@ export const mockProjects: Project[] = [
   },
 ];
 
-export const categories = ["Tất cả", "IT", "Design", "Marketing", "Startup"] as const;
+export const categories = ["Tất cả", "IT", "Startup"] as const;
 export const statuses = ["Tất cả", "Ý tưởng", "Nguyên mẫu", "Đang phát triển"] as const;
 export const skills = [
-  "React", "Node.js", "Python", "UI/UX Design", "Machine Learning",
-  "Flutter", "Marketing", "Copywriting", "Graphic Design", "Backend Dev",
-  "Frontend Dev", "Mobile Dev", "Business Strategy", "Full Stack Dev",
+  "React", "Node.js", "Python", "TypeScript", "Machine Learning",
+  "Flutter", "FastAPI", "DevOps", "Backend Dev",
+  "Frontend Dev", "Mobile Dev", "Full Stack Dev", "AI/ML",
 ];

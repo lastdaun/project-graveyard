@@ -29,9 +29,7 @@ const STATUS_MAP: Record<string, string> = {
 
 const CATEGORY_MAP: Record<string, string> = {
   IT: "IT",
-  Design: "DESIGN",
-  Marketing: "MARKETING",
-  Startup: "STARTUP",
+  "Startup IT": "STARTUP",
 };
 
 const PostProject = () => {
@@ -174,10 +172,8 @@ const PostProject = () => {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue placeholder={t("post.category.ph")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="IT">IT</SelectItem>
-                  <SelectItem value="Design">Design</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Startup">Startup</SelectItem>
+                    <SelectItem value="IT">IT / Phần mềm</SelectItem>
+                    <SelectItem value="Startup IT">Startup IT</SelectItem>
                 </SelectContent>
               </Select>
             </div>
