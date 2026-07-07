@@ -40,6 +40,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public auth endpoints
                 .requestMatchers("/api/auth/**").permitAll()
+                // Seller project endpoint requires auth
+                .requestMatchers(HttpMethod.GET, "/api/projects/my").authenticated()
                 // Public GET endpoints for projects
                 .requestMatchers(HttpMethod.GET, "/api/projects/**").permitAll()
                 // Swagger UI & API docs

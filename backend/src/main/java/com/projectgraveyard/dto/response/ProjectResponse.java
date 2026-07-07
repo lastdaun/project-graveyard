@@ -1,8 +1,6 @@
 package com.projectgraveyard.dto.response;
 
-import com.projectgraveyard.enums.CollaborationMode;
-import com.projectgraveyard.enums.ProjectCategory;
-import com.projectgraveyard.enums.ProjectStatus;
+import com.projectgraveyard.enums.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -32,6 +30,12 @@ public class ProjectResponse {
     private Long price;
     private Integer equitySplit;
     private boolean approved;
+    private ReviewStatus reviewStatus;
+    private String rejectionReason;
+    private Integer soldCount;
+    private SellerType sellerType;
+    private ListingType listingType;
+    private LicenseType licenseType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

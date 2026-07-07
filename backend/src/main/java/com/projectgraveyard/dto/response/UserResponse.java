@@ -1,7 +1,7 @@
 package com.projectgraveyard.dto.response;
 
 import com.projectgraveyard.enums.AccountType;
-import com.projectgraveyard.enums.UserRole;
+import com.projectgraveyard.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,7 +22,7 @@ public class UserResponse {
     private String bio;
     private String location;
     private String university;
-    private UserRole role;
+    private Role role;
     private AccountType accountType;
     private boolean verified;
     private List<String> skills;

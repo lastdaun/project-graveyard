@@ -7,11 +7,7 @@ import com.projectgraveyard.dto.response.UserResponse;
 import com.projectgraveyard.entity.Project;
 import com.projectgraveyard.entity.ProjectMember;
 import com.projectgraveyard.entity.User;
-import com.projectgraveyard.enums.CollaborationMode;
-import com.projectgraveyard.enums.ErrorCode;
-import com.projectgraveyard.enums.ProjectCategory;
-import com.projectgraveyard.enums.ProjectStatus;
-import com.projectgraveyard.enums.UserRole;
+import com.projectgraveyard.enums.*;
 import com.projectgraveyard.exception.AppException;
 import com.projectgraveyard.repository.ProjectMemberRepository;
 import com.projectgraveyard.repository.ProjectRepository;
@@ -77,7 +73,14 @@ public class ProjectService {
                 .collaborationMode(request.getCollaborationMode())
                 .price(request.getPrice())
                 .equitySplit(request.getEquitySplit())
-                .approved(true) // Auto-approved for now
+                .approved(false)
+                .sellerType(request.getSellerType())
+                .listingType(request.getListingType())
+                .licenseType(request.getLicenseType())
+                .demoUrl(request.getDemoUrl())
+                .supportDays(request.getSupportDays())
+                .reviewStatus(ReviewStatus.PENDING_REVIEW)
+                .soldCount(0)
                 .build();
 
         project = projectRepository.save(project);
@@ -120,6 +123,11 @@ public class ProjectService {
         project.setCollaborationMode(request.getCollaborationMode());
         project.setPrice(request.getPrice());
         project.setEquitySplit(request.getEquitySplit());
+        project.setSellerType(request.getSellerType());
+        project.setListingType(request.getListingType());
+        project.setLicenseType(request.getLicenseType());
+        project.setDemoUrl(request.getDemoUrl());
+        project.setSupportDays(request.getSupportDays());
 
         project = projectRepository.save(project);
         log.info("Project updated successfully. ID: {}", project.getId());
@@ -134,7 +142,7 @@ public class ProjectService {
                 .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_FOUND));
 
         // Only creator or admin can delete
-        if (!project.getCreator().getId().equals(currentUser.getId()) && currentUser.getRole() != UserRole.ADMIN) {
+        if (!project.getCreator().getId().equals(currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
             log.error("Delete failed: Unauthorized. Creator ID: {}, Current User ID: {}",
                     project.getCreator().getId(), currentUser.getId());
             throw new AppException(ErrorCode.ACCESS_DENIED);
@@ -193,11 +201,8 @@ public class ProjectService {
 
     public List<ProjectResponse> getMyProjects(User currentUser) {
         log.info("Fetching my projects for user: {}", currentUser.getEmail());
-        // Retrieve all projects where user is creator or member
-        List<ProjectMember> memberships = projectMemberRepository.findByUserId(currentUser.getId());
-        return memberships.stream()
-                .map(ProjectMember::getProject)
-                .distinct()
+        List<Project> projects = projectRepository.findByCreatorId(currentUser.getId());
+        return projects.stream()
                 .map(this::mapToProjectResponse)
                 .collect(Collectors.toList());
     }
@@ -221,6 +226,12 @@ public class ProjectService {
                 .price(project.getPrice())
                 .equitySplit(project.getEquitySplit())
                 .approved(project.isApproved())
+                .reviewStatus(project.getReviewStatus())
+                .rejectionReason(project.getRejectionReason())
+                .soldCount(project.getSoldCount())
+                .sellerType(project.getSellerType())
+                .listingType(project.getListingType())
+                .licenseType(project.getLicenseType())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
                 .build();
