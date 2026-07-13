@@ -7,11 +7,17 @@ export const collaborationModeLabels: Record<CollaborationMode, string> = {
   "Find Co-founder": "Tìm đồng sáng lập",
 };
 
+export type ListingType = "COMPANY_SHOWCASE" | "ABANDONED_PROJECT";
+export type LicenseType = "PERSONAL" | "COMMERCIAL" | "EXCLUSIVE";
+export type ReviewStatus = "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+export type ProjectStage = "IDEA" | "PROTOTYPE" | "MVP" | "IN_DEVELOPMENT" | "NEARLY_COMPLETED" | "COMPLETED";
+export type HandoverType = "SELL_SOURCE_CODE" | "TRANSFER_OWNERSHIP" | "FIND_COFOUNDER" | "FIND_CONTRIBUTOR" | "PROFIT_SHARING";
+
 export interface Project {
   id: string;
   title: string;
   description: string;
-  category: "IT" | "Design" | "Marketing" | "Startup";
+  category: "IT" | "Startup";
   status: "Ý tưởng" | "Nguyên mẫu" | "Đang phát triển";
   skillsNeeded: string[];
   techStack: string[];
@@ -27,6 +33,42 @@ export interface Project {
   collaborationMode: CollaborationMode;
   price?: number;
   equitySplit?: number;
+
+  // Listing type
+  listingType?: ListingType;
+
+  // Common fields
+  licenseType?: LicenseType;
+  reviewStatus?: ReviewStatus;
+  rejectionReason?: string;
+  soldCount?: number;
+  demoUrl?: string;
+  supportDays?: number;
+  commissionRate?: number;
+
+  // Company showcase fields
+  companyName?: string;
+  companyWebsite?: string;
+  companyContactEmail?: string;
+  companyContactPhone?: string;
+  companyLogo?: string;
+  priceRange?: string;
+
+  // Abandoned project fields
+  projectStage?: ProjectStage;
+  completionPercent?: number;
+  completedParts?: string;
+  missingParts?: string;
+  handoverType?: HandoverType;
+  lookingFor?: string;
+
+  // Valuation fields
+  estimatedPriceLow?: number;
+  estimatedPriceSuggested?: number;
+  estimatedPriceHigh?: number;
+  valuationScore?: number;
+  valuationConfidence?: string;
+  valuationNote?: string;
 }
 
 export const collaborationBadge: Record<CollaborationMode, { label: string; className: string }> = {
@@ -77,12 +119,12 @@ export const mockProjects: Project[] = [
   },
   {
     id: "3",
-    title: "BrandKit - Xây dựng thương hiệu cá nhân",
-    description: "Công cụ thiết kế giúp nhà sáng tạo tạo tài liệu thương hiệu cá nhân chuyên nghiệp bao gồm logo, danh thiếp và mẫu mạng xã hội.",
-    category: "Design",
+    title: "BrandKit - Công cụ xây dựng thương hiệu",
+    description: "Công cụ web giúp nhà sáng tạo tạo tài liệu thương hiệu cá nhân chuyên nghiệp bao gồm logo, danh thiếp và mẫu truyền thông xã hội.",
+    category: "IT",
     status: "Ý tưởng",
-    skillsNeeded: ["Graphic Design", "Frontend Dev", "Copywriting"],
-    techStack: ["Figma", "React", "Canvas API"],
+    skillsNeeded: ["Frontend Dev", "Backend Dev", "UI/UX"],
+    techStack: ["React", "Canvas API", "Node.js"],
     creator: { name: "Jordan Lee", avatar: "JL" },
     teamSize: 3,
     currentMembers: 1,
@@ -125,8 +167,8 @@ export const mockProjects: Project[] = [
   {
     id: "6",
     title: "PortfolioForge - Portfolio nhà sáng tạo",
-    description: "Trình tạo portfolio kéo-thả thiết kế riêng cho nhà sáng tạo với các mẫu cho nhiều ngành và xuất tương thích ATS.",
-    category: "Design",
+    description: "Trình tạo portfolio kéo-thả cho developer với các mẫu chuyên nghiệp và xuất tương thích ATS.",
+    category: "IT",
     status: "Ý tưởng",
     skillsNeeded: ["UI/UX", "Frontend Dev", "Illustration"],
     techStack: ["Next.js", "Prisma", "Vercel"],
@@ -140,10 +182,10 @@ export const mockProjects: Project[] = [
   {
     id: "7",
     title: "GreenMarket - Chợ bền vững",
-    description: "Chợ trực tuyến để mua, bán và trao đổi đồ second-hand và bền vững giữa các thành viên cộng đồng.",
-    category: "Marketing",
+    description: "Nền tảng thương mại điện tử để mua, bán và trao đổi đồ second-hand giữa các thành viên cộng đồng.",
+    category: "Startup",
     status: "Nguyên mẫu",
-    skillsNeeded: ["Digital Marketing", "Frontend Dev", "Photography"],
+    skillsNeeded: ["Full Stack Dev", "Mobile Dev", "DevOps"],
     techStack: ["Vue.js", "Node.js", "MongoDB"],
     creator: { name: "Leo Zhang", avatar: "LZ" },
     teamSize: 4,
@@ -170,10 +212,10 @@ export const mockProjects: Project[] = [
   },
 ];
 
-export const categories = ["Tất cả", "IT", "Design", "Marketing", "Startup"] as const;
+export const categories = ["Tất cả", "IT", "Startup"] as const;
 export const statuses = ["Tất cả", "Ý tưởng", "Nguyên mẫu", "Đang phát triển"] as const;
 export const skills = [
-  "React", "Node.js", "Python", "UI/UX Design", "Machine Learning",
-  "Flutter", "Marketing", "Copywriting", "Graphic Design", "Backend Dev",
-  "Frontend Dev", "Mobile Dev", "Business Strategy", "Full Stack Dev",
+  "React", "Node.js", "Python", "Machine Learning", "Flutter",
+  "TypeScript", "Spring Boot", "Docker", "Backend Dev",
+  "Frontend Dev", "Mobile Dev", "DevOps", "Full Stack Dev",
 ];

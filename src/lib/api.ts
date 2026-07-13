@@ -21,10 +21,22 @@ export function isAuthenticated(): boolean {
   return !!getToken();
 }
 
+export function getUserFromStorage(): Record<string, unknown> | null {
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getUserRole(): string | null {
+  const user = getUserFromStorage();
+  return user?.role as string | null;
+}
+
 const CATEGORY_LABEL: Record<string, Project["category"]> = {
   IT: "IT",
-  DESIGN: "Design",
-  MARKETING: "Marketing",
   STARTUP: "Startup",
 };
 
@@ -68,8 +80,34 @@ export function adaptApiProject(p: ApiProject): Project {
     progress: p.progress,
     imageUrl: p.imageUrl,
     createdAt: p.createdAt ?? "",
-    collaborationMode: COLLAB_LABEL[p.collaborationMode] ?? ("Free Collaboration" as CollaborationMode),
+    collaborationMode: COLLAB_LABEL[p.collaborationMode] ?? ("Find Co-founder" as CollaborationMode),
     price: p.price,
     equitySplit: p.equitySplit,
+    listingType: p.listingType,
+    licenseType: p.licenseType,
+    reviewStatus: p.reviewStatus,
+    rejectionReason: p.rejectionReason,
+    soldCount: p.soldCount ?? 0,
+    demoUrl: p.demoUrl,
+    supportDays: p.supportDays,
+    commissionRate: p.commissionRate,
+    companyName: p.companyName,
+    companyWebsite: p.companyWebsite,
+    companyContactEmail: p.companyContactEmail,
+    companyContactPhone: p.companyContactPhone,
+    companyLogo: p.companyLogo,
+    priceRange: p.priceRange,
+    projectStage: p.projectStage,
+    completionPercent: p.completionPercent,
+    completedParts: p.completedParts,
+    missingParts: p.missingParts,
+    handoverType: p.handoverType,
+    lookingFor: p.lookingFor,
+    estimatedPriceLow: p.estimatedPriceLow,
+    estimatedPriceSuggested: p.estimatedPriceSuggested,
+    estimatedPriceHigh: p.estimatedPriceHigh,
+    valuationScore: p.valuationScore,
+    valuationConfidence: p.valuationConfidence,
+    valuationNote: p.valuationNote,
   };
 }

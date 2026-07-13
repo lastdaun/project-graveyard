@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ArrowRight, Lightbulb, Users, Rocket, Star, Quote, Loader2 } from "lucide-react";
+import { ArrowRight, Lightbulb, Users, Rocket, Star, Quote, Loader2, Building2, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -11,37 +11,37 @@ import { adaptApiProject } from "@/lib/api";
 import type { Project } from "@/data/mockData";
 
 const testimonials = [
-  { name: "Emma W.", role: { vi: "Lập trình viên", en: "Developer" }, text: { vi: "Mình có một app code dở nằm trên GitHub mấy tháng. Chỉ trong một tuần trên Project Graveyard, mình đã tìm được designer và marketer để hoàn thành nó.", en: "I had an unfinished app on GitHub for months. Within a week on Project Graveyard, I found a designer and marketer to complete it." } },
-  { name: "Ryan T.", role: { vi: "Nhà thiết kế", en: "Designer" }, text: { vi: "Là designer, mình luôn muốn có dự án thật cho portfolio. Nền tảng này kết nối mình với các developer cần đúng kỹ năng của mình.", en: "As a designer, I always wanted real projects for my portfolio. This platform connects me with developers who need my exact skills." } },
-  { name: "Priya S.", role: { vi: "Chuyên viên Marketing", en: "Marketer" }, text: { vi: "Mình tham gia một dự án startup với vai trò marketing. Giờ đó là điểm nổi bật nhất trong CV và mình học được nhiều hơn bất kỳ môn học nào.", en: "I joined a startup project as a marketer. It's now the highlight of my CV and I learned more than any course." } },
+  { name: "Nguyễn Dev", role: "Lập trình viên", text: "Mình có một app code dở nằm trên GitHub mấy tháng. Chỉ trong một tuần trên Project Graveyard, mình đã tìm được người mua lại và hoàn vốn." },
+  { name: "Trần Designer", role: "Nhà thiết kế", text: "Tìm được project từ công ty để hợp tác, học hỏi công nghệ mới và có thêm thu nhập từ dự án thật." },
+  { name: "Lê Startup", role: "Founder", text: "Mua lại một MVP bỏ dở, cải tiến thêm 2 tháng và launch thành sản phẩm thật. Tiết kiệm hơn làm từ đầu rất nhiều." },
 ];
+
+function useFetchProjects(listingType: string) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/projects?listingType=${listingType}&size=6&sort=createdAt,desc`)
+      .then((r) => r.json())
+      .then((body: ApiResponse<ApiPage<ApiProject>>) => {
+        setProjects((body.data?.content ?? []).map(adaptApiProject));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [listingType]);
+
+  return { projects, loading };
+}
 
 const Landing = () => {
   const { t } = useLanguage();
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
-  const [loadingFeatured, setLoadingFeatured] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/projects?size=3&sort=createdAt,desc")
-      .then((r) => r.json())
-      .then((body: ApiResponse<ApiPage<ApiProject>>) => {
-        setFeaturedProjects((body.data?.content ?? []).map(adaptApiProject));
-      })
-      .catch(() => {})
-      .finally(() => setLoadingFeatured(false));
-  }, []);
+  const { projects: companyProjects, loading: companyLoading } = useFetchProjects("COMPANY_SHOWCASE");
+  const { projects: userProjects, loading: userLoading } = useFetchProjects("ABANDONED_PROJECT");
 
   const steps = [
     { icon: Lightbulb, title: t("landing.step1.title"), desc: t("landing.step1.desc") },
     { icon: Users, title: t("landing.step2.title"), desc: t("landing.step2.desc") },
     { icon: Rocket, title: t("landing.step3.title"), desc: t("landing.step3.desc") },
-  ];
-
-  const benefits = [
-    t("landing.benefit1"),
-    t("landing.benefit2"),
-    t("landing.benefit3"),
-    t("landing.benefit4"),
   ];
 
   return (
@@ -53,34 +53,23 @@ const Landing = () => {
         <div className="container py-20 md:py-32">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-sm text-muted-foreground">
-              <Star className="h-3.5 w-3.5 text-primary" /> {t("landing.badge")}
+              <Star className="h-3.5 w-3.5 text-primary" /> Nơi project bỏ dở tìm được cuộc sống mới
             </div>
-            <h1 
-              className="mb-6 text-4xl md:text-6xl font-bold tracking-tight text-foreground"
-              style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}
-            >
+            <h1 className="mb-6 text-4xl md:text-6xl font-bold tracking-tight text-foreground">
               Biến dự án bỏ dở thành <br className="hidden md:block" />
-              <span className="text-primary" style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}>tài sản giá trị</span>
+              <span className="text-primary">tài sản giá trị</span>
             </h1>
-            <p className="mb-8 text-lg text-muted-foreground md:text-xl">{t("landing.subtitle")}</p>
+            <p className="mb-8 text-lg text-muted-foreground md:text-xl">
+              Mua, bán, hợp tác với các project dang dở. Hoặc khám phá các giải pháp từ công ty phần mềm.
+            </p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link to="/explore">
-                <Button size="lg" className="gap-2">{t("landing.cta.explore")} <ArrowRight className="h-4 w-4" /></Button>
+                <Button size="lg" className="gap-2">Khám phá ngay <ArrowRight className="h-4 w-4" /></Button>
               </Link>
               <Link to="/post">
-                <Button variant="outline" size="lg">{t("landing.cta.post")}</Button>
+                <Button variant="outline" size="lg">Đăng project của bạn</Button>
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Problem */}
-      <section className="border-t">
-        <div className="container py-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="mb-4 font-display text-3xl font-bold">{t("landing.problem.title")}</h2>
-            <p className="text-lg text-muted-foreground">{t("landing.problem.desc")}</p>
           </div>
         </div>
       </section>
@@ -103,70 +92,87 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Featured projects */}
+      {/* Company Showcase Section */}
       <section className="border-t">
-        <div className="container py-20">
-          <div className="mb-10 flex items-end justify-between">
+        <div className="container py-16">
+          <div className="mb-8 flex items-end justify-between">
             <div>
-              <h2 className="font-display text-3xl font-bold">{t("landing.featured.title")}</h2>
-              <p className="mt-2 text-muted-foreground">{t("landing.featured.sub")}</p>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                <Building2 className="h-4 w-4" /> Project từ công ty
+              </div>
+              <h2 className="font-display text-2xl font-bold">Giải pháp & sản phẩm từ công ty phần mềm</h2>
+              <p className="mt-1 text-muted-foreground text-sm">Các project được đội ngũ nền tảng chọn lọc và đăng tải từ các công ty uy tín</p>
             </div>
-            <Link to="/explore" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">
-              {t("landing.featured.all")} <ArrowRight className="h-3.5 w-3.5" />
+            <Link to="/explore?type=COMPANY_SHOWCASE" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">
+              Xem tất cả <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
-          {loadingFeatured ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : featuredProjects.length > 0 ? (
+
+          {companyLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          ) : companyProjects.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {featuredProjects.map((p) => (
-                <ProjectCard key={p.id} project={p} />
-              ))}
+              {companyProjects.map((p) => <ProjectCard key={p.id} project={p} />)}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-10">Chưa có dự án nào. Hãy là người đầu tiên đăng!</p>
+            <div className="rounded-xl border bg-muted/30 p-10 text-center">
+              <Building2 className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">Chưa có project công ty nào. Admin sẽ sớm đăng tải.</p>
+            </div>
           )}
         </div>
       </section>
 
-      {/* Benefits */}
+      {/* Abandoned Project Section */}
       <section className="border-t bg-muted/30">
-        <div className="container py-20">
-          <div className="mx-auto grid max-w-4xl gap-12 md:grid-cols-2 md:items-center">
+        <div className="container py-16">
+          <div className="mb-8 flex items-end justify-between">
             <div>
-              <h2 className="mb-4 font-display text-3xl font-bold">{t("landing.benefits.title")}</h2>
-              <p className="text-muted-foreground">{t("landing.benefits.sub")}</p>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">
+                <GitBranch className="h-4 w-4" /> Project từ người dùng
+              </div>
+              <h2 className="font-display text-2xl font-bold">Project bỏ dở tìm người tiếp tục</h2>
+              <p className="mt-1 text-muted-foreground text-sm">Các project dang dở đang tìm người mua lại, hợp tác hoặc tiếp tục phát triển</p>
             </div>
-            <div className="space-y-4">
-              {benefits.map((b, i) => (
-                <div key={i} className="flex items-start gap-3 rounded-lg border bg-card p-4">
-                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-bold">✓</div>
-                  <span className="text-sm font-medium">{b}</span>
-                </div>
-              ))}
-            </div>
+            <Link to="/explore?type=ABANDONED_PROJECT" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">
+              Xem tất cả <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
+
+          {userLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          ) : userProjects.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {userProjects.map((p) => <ProjectCard key={p.id} project={p} />)}
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card p-10 text-center">
+              <GitBranch className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">Chưa có project nào được duyệt. Hãy là người đầu tiên đăng!</p>
+              <Link to="/post" className="mt-3 inline-block">
+                <Button size="sm" variant="outline">Đăng project bỏ dở của bạn</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
       {/* Testimonials */}
       <section className="border-t">
         <div className="container py-20">
-          <h2 className="mb-12 text-center font-display text-3xl font-bold">{t("landing.testimonials.title")}</h2>
+          <h2 className="mb-12 text-center font-display text-3xl font-bold">Họ nói gì về Project Graveyard</h2>
           <div className="grid gap-6 md:grid-cols-3">
             {testimonials.map((item, i) => (
               <div key={i} className="rounded-xl border bg-card p-6 card-hover">
                 <Quote className="mb-3 h-5 w-5 text-primary/40" />
-                <p className="mb-4 text-sm text-muted-foreground">{item.text.vi}</p>
+                <p className="mb-4 text-sm text-muted-foreground">{item.text}</p>
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                     {item.name.charAt(0)}
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.role.vi}</p>
+                    <p className="text-xs text-muted-foreground">{item.role}</p>
                   </div>
                 </div>
               </div>
@@ -178,12 +184,11 @@ const Landing = () => {
       {/* CTA */}
       <section className="border-t gradient-hero">
         <div className="container py-20 text-center">
-          <h2 className="mb-4 font-display text-3xl font-bold">{t("landing.cta2.title")}</h2>
-          <p className="mx-auto mb-8 max-w-xl text-muted-foreground">{t("landing.cta2.sub")}</p>
-          <div className="flex justify-center gap-3">
-            <Link to="/explore">
-              <Button size="lg">{t("landing.cta2.btn")}</Button>
-            </Link>
+          <h2 className="mb-4 font-display text-3xl font-bold">Bắt đầu ngay hôm nay</h2>
+          <p className="mx-auto mb-8 max-w-xl text-muted-foreground">Đăng project bỏ dở hoặc tìm project phù hợp để mua, hợp tác hoặc tiếp tục phát triển.</p>
+          <div className="flex justify-center gap-3 flex-wrap">
+            <Link to="/explore"><Button size="lg">Khám phá Marketplace</Button></Link>
+            <Link to="/post"><Button size="lg" variant="outline">Đăng project bỏ dở</Button></Link>
           </div>
         </div>
       </section>

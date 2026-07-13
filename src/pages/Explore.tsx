@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Search, Loader2, Building2, GitBranch } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProjectCard from "@/components/ProjectCard";
@@ -10,28 +12,29 @@ import type { ApiProject, ApiResponse, ApiPage } from "@/types/api";
 import { adaptApiProject } from "@/lib/api";
 import type { Project } from "@/data/mockData";
 
-const CATEGORY_OPTIONS = ["Tất cả", "IT", "Design", "Marketing", "Startup"];
-const STATUS_OPTIONS = ["Tất cả", "Ý tưởng", "Nguyên mẫu", "Đang phát triển"];
+const CATEGORY_OPTIONS = ["Tất cả", "IT", "Startup IT"];
 
 const CATEGORY_API_MAP: Record<string, string> = {
   IT: "IT",
-  Design: "DESIGN",
-  Marketing: "MARKETING",
-  Startup: "STARTUP",
+  "Startup IT": "STARTUP",
 };
 
-const STATUS_API_MAP: Record<string, string> = {
-  "Ý tưởng": "IDEA",
-  "Nguyên mẫu": "PROTOTYPE",
-  "Đang phát triển": "DEVELOPING",
-};
+type ListingTab = "ALL" | "COMPANY_SHOWCASE" | "ABANDONED_PROJECT";
+
+const TAB_CONFIG: { value: ListingTab; label: string; icon: React.ElementType; desc: string }[] = [
+  { value: "ALL", label: "Tất cả", icon: Search, desc: "Tất cả project trên nền tảng" },
+  { value: "COMPANY_SHOWCASE", label: "Project từ công ty", icon: Building2, desc: "Giải pháp & sản phẩm từ công ty phần mềm" },
+  { value: "ABANDONED_PROJECT", label: "Project bỏ dở", icon: GitBranch, desc: "Dự án dang dở tìm người tiếp tục" },
+];
 
 const Explore = () => {
   const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const initialType = (searchParams.get("type") as ListingTab) || "ALL";
+
+  const [activeTab, setActiveTab] = useState<ListingTab>(initialType);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tất cả");
-  const [status, setStatus] = useState("Tất cả");
-
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +48,7 @@ const Explore = () => {
         const params = new URLSearchParams();
         if (search) params.set("search", search);
         if (category !== "Tất cả") params.set("category", CATEGORY_API_MAP[category] ?? category.toUpperCase());
-        if (status !== "Tất cả") params.set("status", STATUS_API_MAP[status] ?? status.toUpperCase());
+        if (activeTab !== "ALL") params.set("listingType", activeTab);
         params.set("size", "50");
 
         const res = await fetch(`/api/projects?${params.toString()}`);
@@ -62,16 +65,30 @@ const Explore = () => {
 
     const debounce = setTimeout(fetchProjects, 300);
     return () => clearTimeout(debounce);
-  }, [search, category, status]);
+  }, [search, category, activeTab]);
+
+  const currentTab = TAB_CONFIG.find((t) => t.value === activeTab)!;
 
   return (
     <div className="min-h-screen">
       <Navbar />
       <div className="container py-10">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold">{t("explore.title")}</h1>
-          <p className="mt-2 text-muted-foreground">{t("explore.sub")}</p>
+        <div className="mb-6">
+          <h1 className="font-display text-3xl font-bold">Khám phá Marketplace</h1>
+          <p className="mt-1 text-muted-foreground">{currentTab.desc}</p>
         </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ListingTab)} className="mb-6">
+          <TabsList className="h-auto gap-1 p-1">
+            {TAB_CONFIG.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5">
+                <tab.icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         {/* Filters */}
         <div className="mb-8 flex flex-col gap-3 sm:flex-row">
@@ -94,16 +111,6 @@ const Explore = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder={t("explore.status")} />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Results */}
@@ -117,11 +124,14 @@ const Explore = () => {
             <p className="text-sm">Vui lòng kiểm tra kết nối và thử lại</p>
           </div>
         ) : projects.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {projects.map((p) => (
-              <ProjectCard key={p.id} project={p} />
-            ))}
-          </div>
+          <>
+            <p className="mb-4 text-sm text-muted-foreground">{projects.length} kết quả</p>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {projects.map((p) => (
+                <ProjectCard key={p.id} project={p} />
+              ))}
+            </div>
+          </>
         ) : (
           <div className="py-20 text-center text-muted-foreground">
             <p className="text-lg font-medium">{t("explore.empty")}</p>

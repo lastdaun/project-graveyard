@@ -13,6 +13,11 @@ import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import Pricing from "./pages/Pricing";
 import Transactions from "./pages/Transactions";
+import { Navigate } from "react-router-dom";
+import MyPurchases from "./pages/MyPurchases";
+import CompanyProfile from "./pages/CompanyProfile";
+import Checkout from "./pages/Checkout";
+import AdminCompanyProjectForm from "./pages/AdminCompanyProjectForm";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +39,11 @@ const App = () => (
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/my-listings" element={<Navigate to="/profile" replace />} />
+              <Route path="/my-purchases" element={<MyPurchases />} />
+              <Route path="/company-profile" element={<CompanyProfile />} />
+              <Route path="/checkout/:projectId" element={<Checkout />} />
+              <Route path="/admin/company-projects/new" element={<AdminCompanyProjectForm />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

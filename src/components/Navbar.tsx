@@ -4,19 +4,55 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+interface NavLink {
+  label: string;
+  to: string;
+}
+
+function getNavLinks(role: string | null, t: (k: string) => string): NavLink[] {
+  if (!role) {
+    return [
+      { label: t("nav.home"), to: "/" },
+      { label: t("nav.explore"), to: "/explore" },
+    ];
+  }
+
+  if (role === "ADMIN") {
+    return [
+      { label: "Admin Dashboard", to: "/admin" },
+      { label: t("nav.explore"), to: "/explore" },
+      { label: "Đăng bài công ty", to: "/admin/company-projects/new" },
+      { label: t("nav.profile"), to: "/profile" },
+    ];
+  }
+
+  // USER (default)
+  return [
+    { label: t("nav.home"), to: "/" },
+    { label: t("nav.explore"), to: "/explore" },
+    { label: "Đăng project", to: "/post" },
+    { label: t("nav.profile"), to: "/profile" },
+  ];
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  USER: "Thành viên",
+  ADMIN: "Quản trị viên",
+};
+
 const Navbar = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useLanguage();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Lỗi đọc user", e);
+      } catch {
+        setUser(null);
       }
     } else {
       setUser(null);
@@ -30,14 +66,8 @@ const Navbar = () => {
     window.location.href = "/";
   };
 
-  const navLinks = [
-    { label: t("nav.home"), to: "/" },
-    { label: t("nav.explore"), to: "/explore" },
-    { label: t("nav.post"), to: "/post" },
-    { label: t("nav.pricing"), to: "/pricing" },
-    { label: t("nav.transactions"), to: "/transactions" },
-    { label: t("nav.profile"), to: "/profile" },
-  ];
+  const role = user?.role as string | null ?? null;
+  const navLinks = getNavLinks(role, t);
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
@@ -66,9 +96,14 @@ const Navbar = () => {
         <div className="hidden items-center gap-2 md:flex">
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-muted-foreground">
-                Xin chào, {user.fullName}
-              </span>
+              <div className="flex flex-col items-end">
+                <span className="text-sm font-medium">{user.fullName as string}</span>
+                {role && (
+                  <span className="text-xs text-muted-foreground">
+                    {ROLE_LABEL[role] ?? role}
+                  </span>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 Đăng xuất
               </Button>
@@ -115,7 +150,7 @@ const Navbar = () => {
             {user ? (
               <div className="flex flex-col gap-2 border-t pt-2 w-full">
                 <span className="text-sm font-medium text-muted-foreground py-2 px-1">
-                  Xin chào, {user.fullName}
+                  Xin chào, {user.fullName as string}
                 </span>
                 <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
                   Đăng xuất

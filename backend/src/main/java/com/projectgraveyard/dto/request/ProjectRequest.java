@@ -41,9 +41,37 @@ public class ProjectRequest {
     @NotNull(message = "Collaboration mode is required")
     private CollaborationMode collaborationMode;
 
-    private Long price; // VND
+    private Long price;
 
     @Min(value = 0, message = "Equity split must be at least 0%")
     @Max(value = 100, message = "Equity split cannot exceed 100%")
-    private Integer equitySplit; // %
+    private Integer equitySplit;
+
+    // Marketplace / listing fields
+    private String licenseType;
+
+    private String demoUrl;
+
+    private Integer supportDays;
+
+    // Abandoned project fields
+    private String projectStage;
+
+    private Integer completionPercent;
+
+    private String completedParts;
+
+    private String missingParts;
+
+    private String handoverType;
+
+    private String lookingFor;
+
+    // Valuation fields
+    private Long estimatedPriceLow;
+    private Long estimatedPriceSuggested;
+    private Long estimatedPriceHigh;
+    private Integer valuationScore;
+    private String valuationConfidence;
+    private String valuationNote;
 }

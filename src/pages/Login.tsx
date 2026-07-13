@@ -21,15 +21,13 @@ const Login = () => {
 
     try {
       const endpoint = isSignUp ? "/api/auth/register" : "/api/auth/login";
-      const payload = isSignUp 
-        ? { email, password, fullName }
+      const payload = isSignUp
+        ? { fullName, email, password }
         : { email, password };
 
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -39,19 +37,23 @@ const Login = () => {
         throw new Error(data.message || "Đăng ký/đăng nhập thất bại");
       }
 
-      // Save token and user details to localStorage
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
 
-      toast.success(isSignUp ? t("login.create") + "!" : t("login.welcome") + "!");
-      
-      // Redirect to profile page
-      navigate("/profile");
-    } catch (error: any) {
-      toast.error(error.message || "Đã xảy ra lỗi khi kết nối với máy chủ");
+      toast.success(isSignUp ? "Tạo tài khoản thành công!" : "Chào mừng trở lại!");
+      navigate("/");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Đã xảy ra lỗi khi kết nối với máy chủ");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const switchMode = () => {
+    setIsSignUp(!isSignUp);
+    setEmail("");
+    setPassword("");
+    setFullName("");
   };
 
   return (
@@ -75,49 +77,52 @@ const Login = () => {
             {isSignUp && (
               <div className="space-y-2">
                 <Label htmlFor="name">{t("login.name")}</Label>
-                <Input 
-                  id="name" 
-                  placeholder="Nguyễn Văn A" 
+                <Input
+                  id="name"
+                  placeholder="Nguyễn Văn A"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={isLoading}
-                  required 
+                  required
                 />
               </div>
             )}
+
             <div className="space-y-2">
               <Label htmlFor="email">{t("login.email")}</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="ban@university.edu" 
+              <Input
+                id="email"
+                type="email"
+                placeholder="ban@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                required 
+                required
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">{t("login.password")}</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder="••••••••" 
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                required 
+                required
               />
             </div>
+
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Đang xử lý..." : (isSignUp ? t("nav.signup") : t("nav.login"))}
+              {isLoading ? "Đang xử lý..." : isSignUp ? t("nav.signup") : t("nav.login")}
             </Button>
           </form>
 
           <div className="mt-4 text-center text-sm text-muted-foreground">
             {isSignUp ? t("login.has_account") : t("login.no_account")}{" "}
-            <button 
-              onClick={() => setIsSignUp(!isSignUp)} 
+            <button
+              onClick={switchMode}
               className="font-medium text-primary hover:underline"
               disabled={isLoading}
             >

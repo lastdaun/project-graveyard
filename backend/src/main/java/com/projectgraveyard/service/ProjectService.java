@@ -1,5 +1,6 @@
 package com.projectgraveyard.service;
 
+import com.projectgraveyard.dto.request.CompanyProjectRequest;
 import com.projectgraveyard.dto.request.ProjectRequest;
 import com.projectgraveyard.dto.response.ProjectMemberResponse;
 import com.projectgraveyard.dto.response.ProjectResponse;
@@ -39,15 +40,16 @@ public class ProjectService {
             ProjectStatus status,
             CollaborationMode collaborationMode,
             Long creatorId,
+            String listingType,
             Pageable pageable
     ) {
-        log.info("Searching projects with keyword: {}, category: {}, status: {}, mode: {}, creator: {}",
-                search, category, status, collaborationMode, creatorId);
-        
+        log.info("Searching projects with keyword: {}, category: {}, status: {}, mode: {}, creator: {}, listingType: {}",
+                search, category, status, collaborationMode, creatorId, listingType);
+
         Page<Project> projects = projectRepository.findProjects(
-                search, category, status, collaborationMode, creatorId, pageable
+                search, category, status, collaborationMode, creatorId, listingType, pageable
         );
-        
+
         return projects.map(this::mapToProjectResponse);
     }
 
@@ -60,7 +62,7 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse createProject(ProjectRequest request, User creator) {
-        log.info("Creating new project: '{}' by creator: {}", request.getTitle(), creator.getEmail());
+        log.info("Creating new abandoned project: '{}' by creator: {}", request.getTitle(), creator.getEmail());
 
         Project project = Project.builder()
                 .title(request.getTitle())
@@ -70,19 +72,38 @@ public class ProjectService {
                 .skillsNeeded(request.getSkillsNeeded())
                 .techStack(request.getTechStack())
                 .creator(creator)
-                .teamSize(request.getTeamSize() > 0 ? request.getTeamSize() : 5)
-                .currentMembers(1) // Creator joins automatically
+                .teamSize(request.getTeamSize() > 0 ? request.getTeamSize() : 1)
+                .currentMembers(1)
                 .progress(request.getProgress())
                 .imageUrl(request.getImageUrl())
-                .collaborationMode(request.getCollaborationMode())
+                .collaborationMode(request.getCollaborationMode() != null
+                        ? request.getCollaborationMode()
+                        : CollaborationMode.FIND_COFOUNDER)
                 .price(request.getPrice())
                 .equitySplit(request.getEquitySplit())
-                .approved(true) // Auto-approved for now
+                .approved(false)
+                .listingType("ABANDONED_PROJECT")
+                .licenseType(request.getLicenseType())
+                .reviewStatus("PENDING_REVIEW")
+                .soldCount(0)
+                .demoUrl(request.getDemoUrl())
+                .supportDays(request.getSupportDays())
+                .projectStage(request.getProjectStage())
+                .completionPercent(request.getCompletionPercent())
+                .completedParts(request.getCompletedParts())
+                .missingParts(request.getMissingParts())
+                .handoverType(request.getHandoverType())
+                .lookingFor(request.getLookingFor())
+                .estimatedPriceLow(request.getEstimatedPriceLow())
+                .estimatedPriceSuggested(request.getEstimatedPriceSuggested())
+                .estimatedPriceHigh(request.getEstimatedPriceHigh())
+                .valuationScore(request.getValuationScore())
+                .valuationConfidence(request.getValuationConfidence())
+                .valuationNote(request.getValuationNote())
                 .build();
 
         project = projectRepository.save(project);
 
-        // Add creator as OWNER in the project member table
         ProjectMember member = ProjectMember.builder()
                 .project(project)
                 .user(creator)
@@ -90,7 +111,42 @@ public class ProjectService {
                 .build();
         projectMemberRepository.save(member);
 
-        log.info("Project created successfully with ID: {}", project.getId());
+        log.info("Abandoned project created with ID: {}", project.getId());
+        return mapToProjectResponse(project);
+    }
+
+    @Transactional
+    public ProjectResponse createCompanyProject(CompanyProjectRequest request, User admin) {
+        log.info("Admin {} creating company showcase: '{}'", admin.getEmail(), request.getTitle());
+
+        Project project = Project.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .category(request.getCategory())
+                .status(ProjectStatus.DEVELOPING)
+                .techStack(request.getTechStack())
+                .creator(admin)
+                .teamSize(1)
+                .currentMembers(1)
+                .progress(100)
+                .imageUrl(request.getImageUrl())
+                .collaborationMode(CollaborationMode.SELL_USAGE_RIGHTS)
+                .price(request.getPrice())
+                .approved(true)
+                .listingType("COMPANY_SHOWCASE")
+                .reviewStatus("APPROVED")
+                .soldCount(0)
+                .demoUrl(request.getDemoUrl())
+                .priceRange(request.getPriceRange())
+                .companyName(request.getCompanyName())
+                .companyWebsite(request.getCompanyWebsite())
+                .companyContactEmail(request.getCompanyContactEmail())
+                .companyContactPhone(request.getCompanyContactPhone())
+                .companyLogo(request.getCompanyLogo())
+                .build();
+
+        project = projectRepository.save(project);
+        log.info("Company showcase created with ID: {}", project.getId());
         return mapToProjectResponse(project);
     }
 
@@ -101,10 +157,7 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_FOUND));
 
-        // Security check: only project creator can modify
         if (!project.getCreator().getId().equals(currentUser.getId())) {
-            log.error("Update failed: User is not the project owner. Creator ID: {}, Current User ID: {}",
-                    project.getCreator().getId(), currentUser.getId());
             throw new AppException(ErrorCode.NOT_PROJECT_OWNER);
         }
 
@@ -120,9 +173,23 @@ public class ProjectService {
         project.setCollaborationMode(request.getCollaborationMode());
         project.setPrice(request.getPrice());
         project.setEquitySplit(request.getEquitySplit());
+        project.setLicenseType(request.getLicenseType());
+        project.setDemoUrl(request.getDemoUrl());
+        project.setSupportDays(request.getSupportDays());
+        project.setProjectStage(request.getProjectStage());
+        project.setCompletionPercent(request.getCompletionPercent());
+        project.setCompletedParts(request.getCompletedParts());
+        project.setMissingParts(request.getMissingParts());
+        project.setHandoverType(request.getHandoverType());
+        project.setLookingFor(request.getLookingFor());
+        project.setEstimatedPriceLow(request.getEstimatedPriceLow());
+        project.setEstimatedPriceSuggested(request.getEstimatedPriceSuggested());
+        project.setEstimatedPriceHigh(request.getEstimatedPriceHigh());
+        project.setValuationScore(request.getValuationScore());
+        project.setValuationConfidence(request.getValuationConfidence());
+        project.setValuationNote(request.getValuationNote());
 
         project = projectRepository.save(project);
-        log.info("Project updated successfully. ID: {}", project.getId());
         return mapToProjectResponse(project);
     }
 
@@ -133,36 +200,26 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_FOUND));
 
-        // Only creator or admin can delete
         if (!project.getCreator().getId().equals(currentUser.getId()) && currentUser.getRole() != UserRole.ADMIN) {
-            log.error("Delete failed: Unauthorized. Creator ID: {}, Current User ID: {}",
-                    project.getCreator().getId(), currentUser.getId());
             throw new AppException(ErrorCode.ACCESS_DENIED);
         }
 
-        // Delete membership entries first
         List<ProjectMember> members = projectMemberRepository.findByProjectId(id);
         projectMemberRepository.deleteAll(members);
-
         projectRepository.delete(project);
         log.info("Project deleted successfully. ID: {}", id);
     }
 
     @Transactional
     public ProjectMemberResponse joinProject(Long projectId, User currentUser) {
-        log.info("User {} requesting to join project ID: {}", currentUser.getEmail(), projectId);
-
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_FOUND));
 
         if (projectMemberRepository.existsByProjectAndUser(project, currentUser)) {
-            log.warn("Join failed: User already a member. User: {}, Project ID: {}", currentUser.getEmail(), projectId);
             throw new AppException(ErrorCode.ALREADY_MEMBER);
         }
 
         if (project.getCurrentMembers() >= project.getTeamSize()) {
-            log.error("Join failed: Team is full. Current members: {}, Capacity: {}",
-                    project.getCurrentMembers(), project.getTeamSize());
             throw new AppException(ErrorCode.TEAM_FULL);
         }
 
@@ -173,16 +230,13 @@ public class ProjectService {
                 .build();
         member = projectMemberRepository.save(member);
 
-        // Increment member count on project
         project.setCurrentMembers(project.getCurrentMembers() + 1);
         projectRepository.save(project);
 
-        log.info("User successfully joined the project. Member entry ID: {}", member.getId());
         return mapToProjectMemberResponse(member);
     }
 
     public List<ProjectMemberResponse> getProjectMembers(Long projectId) {
-        log.info("Fetching members for project ID: {}", projectId);
         if (!projectRepository.existsById(projectId)) {
             throw new AppException(ErrorCode.PROJECT_NOT_FOUND);
         }
@@ -193,7 +247,6 @@ public class ProjectService {
 
     public List<ProjectResponse> getMyProjects(User currentUser) {
         log.info("Fetching my projects for user: {}", currentUser.getEmail());
-        // Retrieve all projects where user is creator or member
         List<ProjectMember> memberships = projectMemberRepository.findByUserId(currentUser.getId());
         return memberships.stream()
                 .map(ProjectMember::getProject)
@@ -201,6 +254,46 @@ public class ProjectService {
                 .map(this::mapToProjectResponse)
                 .collect(Collectors.toList());
     }
+
+    // ======== Admin methods ========
+
+    public List<ProjectResponse> getAdminPendingProjects() {
+        return projectRepository.findByReviewStatus("PENDING_REVIEW").stream()
+                .map(this::mapToProjectResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ProjectResponse approveProject(Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_FOUND));
+        project.setApproved(true);
+        project.setReviewStatus("APPROVED");
+        project.setRejectionReason(null);
+        projectRepository.save(project);
+        log.info("Project {} approved by admin", id);
+        return mapToProjectResponse(project);
+    }
+
+    @Transactional
+    public ProjectResponse rejectProject(Long id, String reason) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_FOUND));
+        project.setApproved(false);
+        project.setReviewStatus("REJECTED");
+        project.setRejectionReason(reason);
+        projectRepository.save(project);
+        log.info("Project {} rejected by admin, reason: {}", id, reason);
+        return mapToProjectResponse(project);
+    }
+
+    public List<ProjectResponse> getCompanyProjects() {
+        return projectRepository.findByListingType("COMPANY_SHOWCASE").stream()
+                .map(this::mapToProjectResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ======== Mapping helpers ========
 
     private ProjectResponse mapToProjectResponse(Project project) {
         if (project == null) return null;
@@ -223,6 +316,32 @@ public class ProjectService {
                 .approved(project.isApproved())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
+                .listingType(project.getListingType())
+                .licenseType(project.getLicenseType())
+                .reviewStatus(project.getReviewStatus())
+                .rejectionReason(project.getRejectionReason())
+                .soldCount(project.getSoldCount())
+                .demoUrl(project.getDemoUrl())
+                .supportDays(project.getSupportDays())
+                .commissionRate(project.getCommissionRate())
+                .companyName(project.getCompanyName())
+                .companyWebsite(project.getCompanyWebsite())
+                .companyContactEmail(project.getCompanyContactEmail())
+                .companyContactPhone(project.getCompanyContactPhone())
+                .companyLogo(project.getCompanyLogo())
+                .priceRange(project.getPriceRange())
+                .projectStage(project.getProjectStage())
+                .completionPercent(project.getCompletionPercent())
+                .completedParts(project.getCompletedParts())
+                .missingParts(project.getMissingParts())
+                .handoverType(project.getHandoverType())
+                .lookingFor(project.getLookingFor())
+                .estimatedPriceLow(project.getEstimatedPriceLow())
+                .estimatedPriceSuggested(project.getEstimatedPriceSuggested())
+                .estimatedPriceHigh(project.getEstimatedPriceHigh())
+                .valuationScore(project.getValuationScore())
+                .valuationConfidence(project.getValuationConfidence())
+                .valuationNote(project.getValuationNote())
                 .build();
     }
 

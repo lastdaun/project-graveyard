@@ -67,6 +67,62 @@ public class Project {
 
     private boolean approved;
 
+    // COMPANY_SHOWCASE | ABANDONED_PROJECT
+    private String listingType;
+
+    // PERSONAL | COMMERCIAL | EXCLUSIVE
+    private String licenseType;
+
+    // DRAFT | PENDING_REVIEW | APPROVED | REJECTED
+    private String reviewStatus;
+
+    @Column(columnDefinition = "text")
+    private String rejectionReason;
+
+    private Integer soldCount;
+
+    private String demoUrl;
+
+    private Integer supportDays;
+
+    private Double commissionRate;
+
+    // --- Fields for COMPANY_SHOWCASE ---
+    private String companyName;
+    private String companyWebsite;
+    private String companyContactEmail;
+    private String companyContactPhone;
+    private String companyLogo;
+    private String priceRange;
+
+    // --- Fields for ABANDONED_PROJECT ---
+    // IDEA | PROTOTYPE | MVP | IN_DEVELOPMENT | NEARLY_COMPLETED | COMPLETED
+    private String projectStage;
+
+    private Integer completionPercent;
+
+    @Column(columnDefinition = "text")
+    private String completedParts;
+
+    @Column(columnDefinition = "text")
+    private String missingParts;
+
+    // SELL_SOURCE_CODE | TRANSFER_OWNERSHIP | FIND_COFOUNDER | FIND_CONTRIBUTOR | PROFIT_SHARING
+    private String handoverType;
+
+    @Column(columnDefinition = "text")
+    private String lookingFor;
+
+    // --- Valuation fields ---
+    private Long estimatedPriceLow;
+    private Long estimatedPriceSuggested;
+    private Long estimatedPriceHigh;
+    private Integer valuationScore;
+    private String valuationConfidence;
+
+    @Column(columnDefinition = "text")
+    private String valuationNote;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

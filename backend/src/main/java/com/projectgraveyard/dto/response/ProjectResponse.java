@@ -34,4 +34,39 @@ public class ProjectResponse {
     private boolean approved;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Listing type: COMPANY_SHOWCASE | ABANDONED_PROJECT
+    private String listingType;
+
+    private String licenseType;
+    private String reviewStatus;
+    private String rejectionReason;
+    private Integer soldCount;
+    private String demoUrl;
+    private Integer supportDays;
+    private Double commissionRate;
+
+    // Company showcase fields
+    private String companyName;
+    private String companyWebsite;
+    private String companyContactEmail;
+    private String companyContactPhone;
+    private String companyLogo;
+    private String priceRange;
+
+    // Abandoned project fields
+    private String projectStage;
+    private Integer completionPercent;
+    private String completedParts;
+    private String missingParts;
+    private String handoverType;
+    private String lookingFor;
+
+    // Valuation fields
+    private Long estimatedPriceLow;
+    private Long estimatedPriceSuggested;
+    private Long estimatedPriceHigh;
+    private Integer valuationScore;
+    private String valuationConfidence;
+    private String valuationNote;
 }

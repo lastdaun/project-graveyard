@@ -17,20 +17,27 @@ import java.util.List;
 public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     @Query("SELECT p FROM Project p WHERE " +
-           "(LOWER(p.title) LIKE LOWER(CONCAT('%', COALESCE(:search, ''), '%')) " +
+           "p.approved = true " +
+           "AND (LOWER(p.title) LIKE LOWER(CONCAT('%', COALESCE(:search, ''), '%')) " +
            "OR LOWER(p.description) LIKE LOWER(CONCAT('%', COALESCE(:search, ''), '%'))) " +
            "AND (:category IS NULL OR p.category = :category) " +
            "AND (:status IS NULL OR p.status = :status) " +
            "AND (:collaborationMode IS NULL OR p.collaborationMode = :collaborationMode) " +
-           "AND (:creatorId IS NULL OR p.creator.id = :creatorId)")
+           "AND (:creatorId IS NULL OR p.creator.id = :creatorId) " +
+           "AND (:listingType IS NULL OR p.listingType = :listingType)")
     Page<Project> findProjects(
             @Param("search") String search,
             @Param("category") ProjectCategory category,
             @Param("status") ProjectStatus status,
             @Param("collaborationMode") CollaborationMode collaborationMode,
             @Param("creatorId") Long creatorId,
+            @Param("listingType") String listingType,
             Pageable pageable
     );
 
     List<Project> findByCreatorId(Long creatorId);
+
+    List<Project> findByReviewStatus(String reviewStatus);
+
+    List<Project> findByListingType(String listingType);
 }

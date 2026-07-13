@@ -36,10 +36,11 @@ public class ProjectController {
             @RequestParam(required = false) ProjectStatus status,
             @RequestParam(required = false) CollaborationMode collaborationMode,
             @RequestParam(required = false) Long creatorId,
+            @RequestParam(required = false) String listingType,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<ProjectResponse> response = projectService.getProjects(
-                search, category, status, collaborationMode, creatorId, pageable
+                search, category, status, collaborationMode, creatorId, listingType, pageable
         );
         return ResponseEntity.ok(ApiResponse.success(response));
     }

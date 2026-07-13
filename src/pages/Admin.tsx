@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  LayoutDashboard, Clock, AlertTriangle, Skull, CheckCircle, XCircle,
-  Shield, Ban, Eye, Settings, Save, Users, Wallet, TrendingUp, ArrowUpRight,
+  LayoutDashboard, Clock, AlertTriangle, CheckCircle, XCircle,
+  Shield, Ban, Eye, Settings, Save, Users, Wallet, TrendingUp, ArrowUpRight, Info,
+  Loader2, Building2, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,15 +20,26 @@ import { Bar, BarChart, XAxis, YAxis, Cell, PieChart, Pie } from "recharts";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePricingConfig, type PricingConfig } from "@/contexts/PricingConfigContext";
+import { apiFetch } from "@/lib/api";
+import type { ApiProject, ApiResponse } from "@/types/api";
 
 const sidebarIds = ["overview", "pending", "reported", "users", "transactions", "pricingConfig"] as const;
 
-const pendingProjectsData = [
-  { id: "p1", name: "AI Tutor Bot", creator: "Liam Torres", date: "2026-03-18", requestedPrice: 16_250_000, aiPrice: 12_500_000 },
-  { id: "p2", name: "Campus Carpool", creator: "Priya Gupta", date: "2026-03-17", requestedPrice: null, aiPrice: null },
-  { id: "p3", name: "Lecture Summarizer", creator: "Erik Holm", date: "2026-03-16", requestedPrice: 2_100_000, aiPrice: 1_200_000 },
-  { id: "p4", name: "Dorm Swap", creator: "Chloe Martin", date: "2026-03-15", requestedPrice: 400_000, aiPrice: 375_000 },
-];
+interface PendingProject {
+  id: number;
+  title: string;
+  creator: { fullName: string };
+  createdAt: string;
+  price?: number;
+  progress: number;
+  handoverType?: string;
+  projectStage?: string;
+  completionPercent?: number;
+  estimatedPriceLow?: number;
+  estimatedPriceSuggested?: number;
+  estimatedPriceHigh?: number;
+  valuationConfidence?: string;
+}
 
 const reportedProjectsData = [
   { id: "r1", name: "Get Rich Quick Course", reason: "Spam", reports: 12 },
@@ -83,13 +95,6 @@ const IT_LABELS: Record<string, string> = {
   ai_ml: "AI / ML",
 };
 
-const DESIGN_LABELS: Record<string, string> = {
-  social_post: "Social post / banner",
-  logo_branding: "Logo / Branding",
-  ui_ux_full: "UI/UX full app",
-  motion_video: "Motion video",
-  "3d_model": "3D model / render",
-};
 
 const COMPLEXITY_LABELS: Record<string, string> = {
   a: "Simple", b: "Intermediate", c: "Multi-feature", d: "Real-time", e: "AI/Scalable",
@@ -99,39 +104,90 @@ const INNOVATION_LABELS: Record<string, string> = {
   a: "Template", b: "Improve", c: "New Idea", d: "Unique",
 };
 
+const HANDOVER_LABEL: Record<string, string> = {
+  SELL_SOURCE_CODE: "Bán source code",
+  TRANSFER_OWNERSHIP: "Chuyển nhượng",
+  FIND_COFOUNDER: "Tìm Co-founder",
+  FIND_CONTRIBUTOR: "Tìm Contributor",
+  PROFIT_SHARING: "Chia lợi nhuận",
+};
+
 const Admin = () => {
   const { t } = useLanguage();
   const { config, setConfig } = usePricingConfig();
   const [section, setSection] = useState("overview");
-  const [pending, setPending] = useState(pendingProjectsData);
+  const [pending, setPending] = useState<PendingProject[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [rejectDialogId, setRejectDialogId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [reported, setReported] = useState(reportedProjectsData);
   const [students, setStudents] = useState(mockStudents);
   const [withdrawals, setWithdrawals] = useState(mockWithdrawals);
 
   const [editConfig, setEditConfig] = useState<PricingConfig>({ ...config, itBase: { ...config.itBase }, designBase: { ...config.designBase }, complexityPts: { ...config.complexityPts }, innovationPts: { ...config.innovationPts }, multiplierBrackets: config.multiplierBrackets.map((b) => ({ ...b })) });
 
+  useEffect(() => {
+    if (section === "pending") {
+      setPendingLoading(true);
+      apiFetch("/api/admin/projects/pending")
+        .then((r) => r.json())
+        .then((body: ApiResponse<ApiProject[]>) => {
+          setPending((body.data ?? []).map((p) => ({
+            id: p.id,
+            title: p.title,
+            creator: { fullName: p.creator?.fullName ?? "Unknown" },
+            createdAt: p.createdAt,
+            price: p.price,
+            progress: p.progress,
+            handoverType: p.handoverType,
+            projectStage: p.projectStage,
+            completionPercent: p.completionPercent,
+            estimatedPriceLow: p.estimatedPriceLow,
+            estimatedPriceSuggested: p.estimatedPriceSuggested,
+            estimatedPriceHigh: p.estimatedPriceHigh,
+            valuationConfidence: p.valuationConfidence,
+          })));
+        })
+        .catch(() => toast.error("Không thể tải danh sách chờ duyệt"))
+        .finally(() => setPendingLoading(false));
+    }
+  }, [section]);
+
   const sidebarItems = [
     { label: t("admin.overview"), icon: LayoutDashboard, id: "overview" as const },
-    { label: t("admin.pending"), icon: Clock, id: "pending" as const },
+    { label: "Chờ duyệt (thật)", icon: Clock, id: "pending" as const },
     { label: t("admin.reported"), icon: AlertTriangle, id: "reported" as const },
     { label: t("admin.users"), icon: Users, id: "users" as const },
     { label: t("admin.transactions"), icon: Wallet, id: "transactions" as const },
     { label: t("admin.pricingConfig"), icon: Settings, id: "pricingConfig" as const },
   ];
 
-  const handleApprove = (id: string) => {
-    setPending((prev) => prev.filter((p) => p.id !== id));
-    toast.success(t("admin.pending.approve") + "!");
+  const handleApprove = async (id: number) => {
+    try {
+      const res = await apiFetch(`/api/admin/projects/${id}/approve`, { method: "PATCH" });
+      if (!res.ok) throw new Error();
+      setPending((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Đã duyệt project!");
+    } catch {
+      toast.error("Duyệt thất bại");
+    }
   };
 
-  const handleReject = (id: string) => {
-    setPending((prev) => prev.filter((p) => p.id !== id));
-    toast.error(t("admin.pending.reject") + "!");
-  };
-
-  const handleForceAI = (id: string) => {
-    setPending((prev) => prev.filter((p) => p.id !== id));
-    toast.success(t("admin.pending.forceAI") + " ✓");
+  const handleReject = async (id: number, reason: string) => {
+    if (!reason.trim()) { toast.error("Vui lòng nhập lý do từ chối"); return; }
+    try {
+      const res = await apiFetch(`/api/admin/projects/${id}/reject`, {
+        method: "PATCH",
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error();
+      setPending((prev) => prev.filter((p) => p.id !== id));
+      setRejectDialogId(null);
+      setRejectReason("");
+      toast.error("Đã từ chối project");
+    } catch {
+      toast.error("Từ chối thất bại");
+    }
   };
 
   const handleKeep = (id: string) => {
@@ -165,7 +221,6 @@ const Admin = () => {
   };
 
   const updateItBase = (key: string, val: number) => setEditConfig((c) => ({ ...c, itBase: { ...c.itBase, [key]: val } }));
-  const updateDesignBase = (key: string, val: number) => setEditConfig((c) => ({ ...c, designBase: { ...c.designBase, [key]: val } }));
   const updateComplexity = (key: string, val: number) => setEditConfig((c) => ({ ...c, complexityPts: { ...c.complexityPts, [key]: val } }));
   const updateInnovation = (key: string, val: number) => setEditConfig((c) => ({ ...c, innovationPts: { ...c.innovationPts, [key]: val } }));
   const updateCheckPt = (val: number) => setEditConfig((c) => ({ ...c, checkPt: val }));
@@ -177,13 +232,17 @@ const Admin = () => {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-6">
-          <Link to="/" className="flex items-center gap-2 font-sans text-lg font-bold">
-            <Skull className="h-5 w-5 text-primary" />
-            <span>{t("admin.title")}</span>
-          </Link>
-          <Link to="/">
-            <Button variant="ghost" size="sm">{t("admin.back")}</Button>
-          </Link>
+          <Link to="/" className="font-sans text-lg font-bold">{t("admin.title")}</Link>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/company-projects/new">
+              <Button size="sm" className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Đăng project công ty
+              </Button>
+            </Link>
+            <Link to="/">
+              <Button variant="ghost" size="sm">{t("admin.back")}</Button>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -206,6 +265,17 @@ const Admin = () => {
         </aside>
 
         <main className="flex-1 p-6 lg:p-8">
+          {/* API Status Banner */}
+          <div className="mb-6 flex items-start gap-2 rounded-lg border border-amber-300/50 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-700/50 p-3 text-sm text-amber-800 dark:text-amber-300">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <strong>Lưu ý:</strong> Backend chưa có Admin API (approve/reject project). Dữ liệu hiện tại là <strong>mock demo</strong>.
+              Cần thêm: <code className="rounded bg-amber-100 dark:bg-amber-900/40 px-1 text-xs">GET /api/admin/projects/pending</code>,{" "}
+              <code className="rounded bg-amber-100 dark:bg-amber-900/40 px-1 text-xs">PUT /api/admin/projects/{"{id}"}/approve</code>,{" "}
+              <code className="rounded bg-amber-100 dark:bg-amber-900/40 px-1 text-xs">PUT /api/admin/projects/{"{id}"}/reject</code>
+            </span>
+          </div>
+
           <div className="mb-6 md:hidden">
             <Tabs value={section} onValueChange={setSection}>
               <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
@@ -236,7 +306,7 @@ const Admin = () => {
                     </Badge>
                   </div>
                   <p className="mt-3 text-2xl font-bold tabular-nums">{pending.length}</p>
-                  <p className="text-xs text-muted-foreground">{t("admin.pending")}</p>
+                  <p className="text-xs text-muted-foreground">Chờ duyệt</p>
                   <p className="text-[10px] text-muted-foreground/70 mt-0.5">{t("admin.overview.vsLastMonth")}</p>
                 </button>
 
@@ -319,83 +389,109 @@ const Admin = () => {
             </div>
           )}
 
-          {/* ===== PENDING ===== */}
+          {/* ===== PENDING (REAL API) ===== */}
           {section === "pending" && (
             <div className="space-y-6">
-              <div>
-                <h1 className="font-sans text-2xl font-bold">{t("admin.pending.title")}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("admin.pending.sub")}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="font-sans text-2xl font-bold">Duyệt project người dùng</h1>
+                  <p className="text-sm text-muted-foreground mt-1">Project ABANDONED_PROJECT đang chờ duyệt — dữ liệu thật từ DB</p>
+                </div>
+                <Badge variant="secondary">{pending.length} chờ duyệt</Badge>
               </div>
-              {pending.length === 0 ? (
+
+              {pendingLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : pending.length === 0 ? (
                 <div className="rounded-xl border bg-card p-12 text-center">
                   <CheckCircle className="mx-auto h-10 w-10 text-accent mb-3" />
-                  <p className="font-semibold">{t("admin.pending.empty")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{t("admin.pending.emptySub")}</p>
+                  <p className="font-semibold">Không có project nào đang chờ duyệt</p>
+                  <p className="text-sm text-muted-foreground mt-1">Tất cả bài đăng đã được xử lý</p>
                 </div>
               ) : (
-                <div className="rounded-xl border bg-card overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("admin.pending.name")}</TableHead>
-                        <TableHead>{t("admin.pending.creator")}</TableHead>
-                        <TableHead>{t("admin.pending.date")}</TableHead>
-                        <TableHead>{t("admin.pending.requested")}</TableHead>
-                        <TableHead>{t("admin.pending.aiPrice")}</TableHead>
-                        <TableHead>{t("admin.pending.variance")}</TableHead>
-                        <TableHead className="text-right">{t("admin.pending.action")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pending.map((p) => {
-                        const variance = p.requestedPrice && p.aiPrice ? Math.round(((p.requestedPrice - p.aiPrice) / p.aiPrice) * 100) : null;
-                        const isOver30 = variance !== null && variance > 30;
-                        return (
-                          <TableRow key={p.id} className={isOver30 ? "bg-primary/5" : ""}>
-                            <TableCell className="font-medium">{p.name}</TableCell>
-                            <TableCell>{p.creator}</TableCell>
-                            <TableCell className="tabular-nums">{p.date}</TableCell>
-                            <TableCell className="tabular-nums">
-                              {p.requestedPrice ? `${p.requestedPrice.toLocaleString("vi-VN")}₫` : "—"}
-                            </TableCell>
-                            <TableCell className="tabular-nums">
-                              {p.aiPrice ? `${p.aiPrice.toLocaleString("vi-VN")}₫` : "—"}
-                            </TableCell>
-                            <TableCell>
-                              {variance !== null ? (
-                                <Badge variant="outline" className={isOver30 ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-accent/10 text-accent border-accent/30"}>
-                                  {variance > 0 ? "+" : ""}{variance}%
+                <div className="space-y-4">
+                  {pending.map((p) => (
+                    <div key={p.id} className="rounded-xl border bg-card p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">{p.projectStage ?? "—"}</Badge>
+                            {p.handoverType && (
+                              <Badge variant="outline" className="text-xs">{HANDOVER_LABEL[p.handoverType] ?? p.handoverType}</Badge>
+                            )}
+                          </div>
+                          <h3 className="font-semibold">{p.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {p.creator.fullName} · {new Date(p.createdAt).toLocaleDateString("vi-VN")}
+                            {p.completionPercent != null && ` · ${p.completionPercent}% hoàn thiện`}
+                          </p>
+                          {p.price && (
+                            <p className="text-sm font-medium text-primary mt-0.5">
+                              Giá mong muốn: {p.price.toLocaleString("vi-VN")}₫
+                            </p>
+                          )}
+                          {p.estimatedPriceSuggested && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                              <span className="text-muted-foreground">
+                                Gợi ý hệ thống: <span className="font-medium text-foreground">{p.estimatedPriceLow?.toLocaleString("vi-VN")}₫ – {p.estimatedPriceHigh?.toLocaleString("vi-VN")}₫</span>
+                              </span>
+                              {p.valuationConfidence && (
+                                <Badge variant="outline" className={`text-[10px] py-0 ${
+                                  p.valuationConfidence === "Cao" ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-300"
+                                  : p.valuationConfidence === "Trung bình" ? "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300"
+                                  : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-300"
+                                }`}>
+                                  {p.valuationConfidence}
                                 </Badge>
-                              ) : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2 flex-wrap">
-                                {isOver30 ? (
-                                  <>
-                                    <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => handleApprove(p.id)}>
-                                      {t("admin.pending.approvePrice")}
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10" onClick={() => handleForceAI(p.id)}>
-                                      {t("admin.pending.forceAI")}
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => handleApprove(p.id)}>
-                                      <CheckCircle className="mr-1 h-3.5 w-3.5" /> {t("admin.pending.approve")}
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => handleReject(p.id)}>
-                                      <XCircle className="mr-1 h-3.5 w-3.5" /> {t("admin.pending.reject")}
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                              )}
+                              {p.price && p.estimatedPriceSuggested && p.price > p.estimatedPriceSuggested * 1.5 && (
+                                <Badge variant="outline" className="text-[10px] py-0 bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-300">
+                                  Giá cao hơn gợi ý
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground gap-1" onClick={() => handleApprove(p.id)}>
+                            <CheckCircle className="h-3.5 w-3.5" /> Duyệt
+                          </Button>
+                          <Button size="sm" variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10 gap-1"
+                            onClick={() => { setRejectDialogId(p.id); setRejectReason(""); }}>
+                            <XCircle className="h-3.5 w-3.5" /> Từ chối
+                          </Button>
+                          <Link to={`/project/${p.id}`} target="_blank">
+                            <Button size="sm" variant="ghost" className="gap-1">
+                              <Eye className="h-3.5 w-3.5" /> Xem
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Reject dialog */}
+              {rejectDialogId !== null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                  <div className="rounded-xl border bg-card p-6 w-full max-w-md shadow-xl">
+                    <h3 className="font-semibold text-lg mb-2">Lý do từ chối</h3>
+                    <p className="text-sm text-muted-foreground mb-3">Người đăng sẽ thấy lý do này trong Tin đăng của tôi</p>
+                    <textarea
+                      className="w-full rounded-lg border bg-background p-3 text-sm resize-none"
+                      rows={4}
+                      placeholder="vd: Mô tả chưa rõ phần đã làm và phần còn thiếu..."
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                    <div className="mt-4 flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setRejectDialogId(null)}>Hủy</Button>
+                      <Button variant="destructive" onClick={() => handleReject(rejectDialogId, rejectReason)}>Xác nhận từ chối</Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -562,15 +658,6 @@ const Admin = () => {
                     <div key={key} className="flex items-center gap-3">
                       <Label className="w-36 text-sm shrink-0">{IT_LABELS[key]}</Label>
                       <Input type="number" value={val} onChange={(e) => updateItBase(key, Number(e.target.value))} className="tabular-nums" />
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-xl border bg-card p-5 space-y-4">
-                  <h3 className="font-sans font-semibold">{t("admin.pricing.designPrices")}</h3>
-                  {Object.entries(editConfig.designBase).map(([key, val]) => (
-                    <div key={key} className="flex items-center gap-3">
-                      <Label className="w-36 text-sm shrink-0">{DESIGN_LABELS[key]}</Label>
-                      <Input type="number" value={val} onChange={(e) => updateDesignBase(key, Number(e.target.value))} className="tabular-nums" />
                     </div>
                   ))}
                 </div>

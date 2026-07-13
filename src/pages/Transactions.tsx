@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Wallet, TrendingUp, TrendingDown, FileText, ArrowUpRight, ArrowDownLeft, QrCode, CheckCircle2 } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, FileText, ArrowUpRight, ArrowDownLeft, QrCode, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -144,7 +144,15 @@ const Transactions = () => {
       <Navbar />
       <div className="container max-w-6xl py-10">
         <h1 className="mb-2 font-display text-3xl font-bold">{t("tx.title")}</h1>
-        <p className="mb-8 text-muted-foreground">{t("tx.sub")}</p>
+        <p className="mb-4 text-muted-foreground">{t("tx.sub")}</p>
+
+        <div className="mb-6 flex items-start gap-2 rounded-lg border border-amber-300/50 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-700/50 p-3 text-sm text-amber-800 dark:text-amber-300">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <strong>Demo:</strong> Dữ liệu ví và giao dịch hiện tại là mock. Backend chưa có Order/Wallet/Transaction API.
+            Tính năng thanh toán thật sẽ được tích hợp khi backend hoàn thiện.
+          </span>
+        </div>
 
         {/* Summary Cards */}
         <div className="mb-8 grid gap-4 sm:grid-cols-3">

@@ -1,97 +1,174 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
-import type { CollaborationMode } from "@/data/mockData";
-import PricingCalculator from "@/components/PricingCalculator";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { AlertTriangle } from "lucide-react";
 import { apiFetch, isAuthenticated } from "@/lib/api";
-
-const COLLAB_MODE_MAP: Record<string, string> = {
-  "Free Collaboration": "FREE_COLLABORATION",
-  "Profit Sharing": "PROFIT_SHARING",
-  "Sell Usage Rights": "SELL_USAGE_RIGHTS",
-  "Find Co-founder": "FIND_COFOUNDER",
-};
-
-const STATUS_MAP: Record<string, string> = {
-  "Ý tưởng": "IDEA",
-  "Nguyên mẫu": "PROTOTYPE",
-  "Đang phát triển": "DEVELOPING",
-};
+import { Info, GitBranch, AlertTriangle } from "lucide-react";
+import {
+  ProjectValuationAssistant,
+  calculateValuation,
+  PROJECT_TYPE_OPTIONS,
+  CODE_STATUS_OPTIONS,
+  type ValuationInput,
+  type ProjectType,
+  type CodeStatus,
+} from "@/components/ProjectValuationAssistant";
 
 const CATEGORY_MAP: Record<string, string> = {
   IT: "IT",
-  Design: "DESIGN",
-  Marketing: "MARKETING",
   Startup: "STARTUP",
 };
 
+const HANDOVER_OPTIONS = [
+  { label: "Bán source code", value: "SELL_SOURCE_CODE" },
+  { label: "Chuyển nhượng toàn bộ ownership", value: "TRANSFER_OWNERSHIP" },
+  { label: "Tìm đồng sáng lập (Co-founder)", value: "FIND_COFOUNDER" },
+  { label: "Tìm người đóng góp (Contributor)", value: "FIND_CONTRIBUTOR" },
+  { label: "Chia sẻ lợi nhuận (Profit Sharing)", value: "PROFIT_SHARING" },
+];
+
+const STAGE_OPTIONS = [
+  { label: "Ý tưởng — chưa code", value: "IDEA" },
+  { label: "Prototype — đã có giao diện thô", value: "PROTOTYPE" },
+  { label: "MVP — chạy được tính năng cốt lõi", value: "MVP" },
+  { label: "Đang phát triển — còn dang dở", value: "IN_DEVELOPMENT" },
+  { label: "Gần xong — >80% hoàn thiện", value: "NEARLY_COMPLETED" },
+  { label: "Hoàn thiện — 100% nhưng muốn bán/chuyển nhượng", value: "COMPLETED" },
+];
+
+// ── Checkbox helper ────────────────────────────────────────────────────────────
+const CheckRow = ({
+  id, label, checked, onChange,
+}: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void }) => (
+  <label
+    htmlFor={id}
+    className="flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5"
+  >
+    <input
+      id={id}
+      type="checkbox"
+      className="h-4 w-4 accent-primary"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+    {label}
+  </label>
+);
+
 const PostProject = () => {
-  const { t } = useLanguage();
   const navigate = useNavigate();
+
+  // Basic
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [status, setStatus] = useState("");
-  const [skills, setSkills] = useState("");
-  const [teamSize, setTeamSize] = useState("");
-  const [collabMode, setCollabMode] = useState<CollaborationMode | "">("");
+  const [techStack, setTechStack] = useState("");
+  const [completionPercent, setCompletionPercent] = useState(50);
+  const [projectStage, setProjectStage] = useState("");
+  const [completedParts, setCompletedParts] = useState("");
+  const [missingParts, setMissingParts] = useState("");
+  const [handoverType, setHandoverType] = useState("");
+  const [lookingFor, setLookingFor] = useState("");
   const [price, setPrice] = useState("");
-  const [aiPrice, setAiPrice] = useState(0);
-  const [priceMode, setPriceMode] = useState<"recommended" | "custom" | "">("");
-  const [customPrice, setCustomPrice] = useState("");
-  const [equitySplit, setEquitySplit] = useState("");
+  const [demoUrl, setDemoUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Valuation inputs
+  const [projectType, setProjectType] = useState<ProjectType | "">("");
+  const [hasDemo, setHasDemo] = useState(false);
+  const [hasSourceCode, setHasSourceCode] = useState(false);
+  const [hasDatabase, setHasDatabase] = useState(false);
+  const [hasReadme, setHasReadme] = useState(false);
+  const [hasApiDocs, setHasApiDocs] = useState(false);
+  const [hasScreenshots, setHasScreenshots] = useState(false);
+  const [hasTestAccount, setHasTestAccount] = useState(false);
+  const [codeStatus, setCodeStatus] = useState<CodeStatus | "">("");
+
+  const showPrice = handoverType === "SELL_SOURCE_CODE" || handoverType === "TRANSFER_OWNERSHIP";
+
+  const valuationInput: ValuationInput = useMemo(() => ({
+    projectType,
+    completionPercent,
+    projectStage,
+    hasDemo,
+    hasSourceCode,
+    hasDatabase,
+    hasReadme,
+    hasApiDocs,
+    hasScreenshots,
+    hasTestAccount,
+    codeStatus,
+    handoverType,
+  }), [projectType, completionPercent, projectStage, hasDemo, hasSourceCode,
+      hasDatabase, hasReadme, hasApiDocs, hasScreenshots, hasTestAccount, codeStatus, handoverType]);
+
+  const valuation = useMemo(() => calculateValuation(valuationInput), [valuationInput]);
+
+  // Price warning logic
+  const priceNum = price ? Number(price) : 0;
+  const priceWarning: "high" | "low" | null = useMemo(() => {
+    if (!showPrice || !priceNum || !valuation) return null;
+    if (priceNum > valuation.estimatedPriceSuggested * 1.5) return "high";
+    if (priceNum < valuation.estimatedPriceSuggested * 0.6) return "low";
+    return null;
+  }, [showPrice, priceNum, valuation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isAuthenticated()) {
-      toast.error("Bạn cần đăng nhập để đăng dự án");
+      toast.error("Bạn cần đăng nhập để đăng project");
       navigate("/login");
       return;
     }
 
-    if (!category || !status || !collabMode) {
-      toast.error("Vui lòng điền đầy đủ danh mục, trạng thái và hình thức hợp tác");
+    if (!category || !projectStage || !handoverType) {
+      toast.error("Vui lòng điền đầy đủ: danh mục, giai đoạn dự án và hình thức chuyển giao");
       return;
     }
 
-    if (collabMode === "Sell Usage Rights" && !price) {
-      toast.error("Vui lòng chọn hoặc nhập giá bán cho dự án");
+    if (showPrice && price && Number(price) < 1) {
+      toast.error("Giá phải lớn hơn 0");
       return;
     }
 
-    const skillsArray = skills
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const techArray = techStack.split(",").map((s) => s.trim()).filter(Boolean);
 
     const payload: Record<string, unknown> = {
       title,
       description,
       category: CATEGORY_MAP[category] ?? category.toUpperCase(),
-      status: STATUS_MAP[status] ?? status.toUpperCase(),
-      collaborationMode: COLLAB_MODE_MAP[collabMode] ?? collabMode,
-      skillsNeeded: skillsArray,
-      teamSize: Number(teamSize) || 1,
-      progress: 0,
+      status: "DEVELOPING",
+      techStack: techArray,
+      teamSize: 1,
+      progress: completionPercent,
+      collaborationMode: "FIND_COFOUNDER",
+      projectStage,
+      completionPercent,
+      completedParts: completedParts.trim() || null,
+      missingParts: missingParts.trim() || null,
+      handoverType,
+      lookingFor: lookingFor.trim() || null,
     };
 
-    if (collabMode === "Sell Usage Rights" && price) {
-      payload.price = Number(price);
-    }
+    if (showPrice && price) payload.price = Number(price);
+    if (demoUrl.trim()) payload.demoUrl = demoUrl.trim();
 
-    if (collabMode === "Profit Sharing" && equitySplit) {
-      payload.equitySplit = Number(equitySplit);
+    // Valuation fields
+    if (valuation) {
+      payload.estimatedPriceLow       = valuation.estimatedPriceLow;
+      payload.estimatedPriceSuggested  = valuation.estimatedPriceSuggested;
+      payload.estimatedPriceHigh       = valuation.estimatedPriceHigh;
+      payload.valuationScore           = valuation.valuationScore;
+      payload.valuationConfidence      = valuation.valuationConfidence;
+      payload.valuationNote            = valuation.valuationNote;
     }
 
     setIsSubmitting(true);
@@ -110,201 +187,289 @@ const PostProject = () => {
       }
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || "Đăng project thất bại");
 
-      if (!response.ok) {
-        const msg = data?.message || data?.error || "Đăng dự án thất bại";
-        throw new Error(msg);
-      }
-
-      toast.success(t("post.success"));
-      navigate("/explore");
+      toast.success("Đã gửi duyệt! Admin xem xét và duyệt trước khi hiển thị công khai.");
+      navigate("/my-listings");
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Đã xảy ra lỗi khi kết nối máy chủ";
-      toast.error(msg);
+      toast.error(error instanceof Error ? error.message : "Đã xảy ra lỗi khi kết nối máy chủ");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handlePriceApply = (p: number) => {
-    setAiPrice(p);
-    setPriceMode("");
-    setPrice("");
-    setCustomPrice("");
-  };
-
-  const handleUseRecommended = () => {
-    setPrice(String(aiPrice));
-    setPriceMode("recommended");
-    toast.success(t("post.price.applied"));
-  };
-
-  const handleUseCustom = () => {
-    setPriceMode("custom");
-  };
-
-  const handleCustomPriceConfirm = () => {
-    setPrice(customPrice);
-    toast.success(t("post.price.applied"));
-  };
-
-  const customExceeds30 = customPrice && aiPrice > 0 && Number(customPrice) > aiPrice * 1.3;
-
   return (
     <div className="min-h-screen">
       <Navbar />
       <div className="container max-w-2xl py-10">
-        <h1 className="mb-2 font-display text-3xl font-bold">{t("post.title")}</h1>
-        <p className="mb-8 text-muted-foreground">{t("post.sub")}</p>
+        <div className="mb-6 flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <GitBranch className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="font-display text-3xl font-bold">Đăng project bỏ dở</h1>
+            <p className="mt-1 text-muted-foreground">Chia sẻ project chưa hoàn thành — tìm người mua, đồng sáng lập, hoặc contributor</p>
+          </div>
+        </div>
+
+        <div className="mb-6 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-primary">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Sau khi gửi, bài đăng sẽ ở trạng thái <strong>Chờ duyệt</strong>. Admin xem xét và duyệt trước khi hiển thị công khai.</span>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="title">{t("post.name")}</Label>
-            <Input id="title" placeholder={t("post.name.ph")} value={title} onChange={(e) => setTitle(e.target.value)} required />
-          </div>
+          {/* ── Basic info ─────────────────────────────────────────────────── */}
+          <div className="rounded-xl border bg-card p-5 space-y-4">
+            <h2 className="font-semibold">Thông tin cơ bản</h2>
 
-          <div className="space-y-2">
-            <Label htmlFor="desc">{t("post.desc")}</Label>
-            <Textarea id="desc" placeholder={t("post.desc.ph")} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} required />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>{t("post.category")}</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue placeholder={t("post.category.ph")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="IT">IT</SelectItem>
-                  <SelectItem value="Design">Design</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Startup">Startup</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("post.status")}</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger><SelectValue placeholder={t("post.status.ph")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ý tưởng">{t("status.idea")}</SelectItem>
-                  <SelectItem value="Nguyên mẫu">{t("status.prototype")}</SelectItem>
-                  <SelectItem value="Đang phát triển">{t("status.developing")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="skills">{t("post.skills")}</Label>
-            <Input id="skills" placeholder={t("post.skills.ph")} value={skills} onChange={(e) => setSkills(e.target.value)} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="team">{t("post.team")}</Label>
-            <Input id="team" type="number" placeholder="vd: 3" min="1" max="20" value={teamSize} onChange={(e) => setTeamSize(e.target.value)} />
-          </div>
-
-          {/* Collaboration Mode */}
-          <div className="rounded-xl border bg-muted/30 p-5 space-y-4">
-            <h2 className="font-display font-semibold">{t("post.collab.title")}</h2>
-            <div className="space-y-2">
-              <Label>{t("post.collab.question")}</Label>
-              <Select value={collabMode} onValueChange={(v) => { setCollabMode(v as CollaborationMode); setPrice(""); setAiPrice(0); setPriceMode(""); setCustomPrice(""); }}>
-                <SelectTrigger><SelectValue placeholder={t("post.collab.ph")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Free Collaboration">{t("post.collab.free")}</SelectItem>
-                  <SelectItem value="Profit Sharing">{t("post.collab.profit")}</SelectItem>
-                  <SelectItem value="Sell Usage Rights">{t("post.collab.sell")}</SelectItem>
-                  <SelectItem value="Find Co-founder">{t("post.collab.cofounder")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="title">Tên project <span className="text-destructive">*</span></Label>
+              <Input
+                id="title"
+                placeholder="vd: Ticket Resell Platform — nền tảng bán lại vé"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
             </div>
 
-            {collabMode === "Sell Usage Rights" && (
+            <div className="space-y-2">
+              <Label htmlFor="desc">Mô tả project <span className="text-destructive">*</span></Label>
+              <Textarea
+                id="desc"
+                placeholder="Giải thích project là gì, đã làm được gì, dùng để làm gì..."
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>{t("post.pricing.label")}</Label>
-                {aiPrice > 0 ? (
-                  <div className="space-y-3">
-                    <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
-                      <p className="text-xs text-muted-foreground">{t("post.pricing.recommended")}</p>
-                      <p className="font-display text-xl font-bold">{aiPrice.toLocaleString("vi-VN")}₫</p>
-                    </div>
+                <Label>Danh mục <span className="text-destructive">*</span></Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger><SelectValue placeholder="Chọn danh mục" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IT">IT / Phần mềm</SelectItem>
+                    <SelectItem value="Startup">Startup IT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Giai đoạn dự án <span className="text-destructive">*</span></Label>
+                <Select value={projectStage} onValueChange={setProjectStage}>
+                  <SelectTrigger><SelectValue placeholder="Chọn giai đoạn" /></SelectTrigger>
+                  <SelectContent>
+                    {STAGE_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-                    {!price && (
-                      <div className="flex gap-2">
-                        <Button type="button" size="sm" onClick={handleUseRecommended} className="flex-1">
-                          {t("post.price.use_recommended")}
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={handleUseCustom} className="flex-1">
-                          {t("post.price.custom")}
-                        </Button>
-                      </div>
-                    )}
+            <div className="space-y-3">
+              <Label>Mức độ hoàn thiện: <span className="font-semibold text-primary">{completionPercent}%</span></Label>
+              <Slider
+                value={[completionPercent]}
+                onValueChange={([v]) => setCompletionPercent(v)}
+                min={0}
+                max={100}
+                step={5}
+                className="py-2"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0%</span><span>50%</span><span>100%</span>
+              </div>
+            </div>
 
-                    {priceMode === "custom" && !price && (
-                      <div className="space-y-2">
-                        <Label>{t("post.price.custom_label")}</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            placeholder="vd: 15000000"
-                            value={customPrice}
-                            onChange={(e) => setCustomPrice(e.target.value)}
-                          />
-                          <Button type="button" size="sm" onClick={handleCustomPriceConfirm} disabled={!customPrice}>
-                            OK
-                          </Button>
-                        </div>
-                        {customExceeds30 && (
-                          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
-                            <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                            <p className="text-xs text-warning">{t("post.price.warning")}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+            <div className="space-y-2">
+              <Label htmlFor="tech">Tech Stack</Label>
+              <Input
+                id="tech"
+                placeholder="vd: React, Spring Boot, PostgreSQL (cách nhau bằng dấu phẩy)"
+                value={techStack}
+                onChange={(e) => setTechStack(e.target.value)}
+              />
+            </div>
+          </div>
 
-                    {price && (
-                      <div className="rounded-xl border bg-card p-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">{priceMode === "custom" ? t("post.price.custom") : t("post.price.use_recommended")}</p>
-                          <p className="font-display text-xl font-bold">{Number(price).toLocaleString("vi-VN")}₫</p>
-                        </div>
-                        <Button type="button" size="sm" variant="outline" onClick={() => { setPrice(""); setAiPrice(0); setPriceMode(""); setCustomPrice(""); }}>
-                          {t("post.pricing.recalc")}
-                        </Button>
-                      </div>
-                    )}
+          {/* ── Project state details ───────────────────────────────────────── */}
+          <div className="rounded-xl border bg-card p-5 space-y-4">
+            <h2 className="font-semibold">Chi tiết tình trạng project</h2>
+
+            <div className="space-y-2">
+              <Label htmlFor="done">Phần đã hoàn thành</Label>
+              <Textarea
+                id="done"
+                placeholder="vd: Auth, ticket listing, search, database schema, API endpoints"
+                rows={3}
+                value={completedParts}
+                onChange={(e) => setCompletedParts(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="missing">Phần còn thiếu / chưa làm</Label>
+              <Textarea
+                id="missing"
+                placeholder="vd: Payment integration, realtime chat, admin dashboard, deployment"
+                rows={3}
+                value={missingParts}
+                onChange={(e) => setMissingParts(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* ── Valuation section ──────────────────────────────────────────── */}
+          <div className="rounded-xl border bg-card p-5 space-y-5">
+            <div>
+              <h2 className="font-semibold">Bộ gợi ý giá</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Trả lời để nhận gợi ý giá phù hợp với tình trạng project</p>
+            </div>
+
+            {/* Project type */}
+            <div className="space-y-2">
+              <Label>Loại project</Label>
+              <Select value={projectType} onValueChange={(v) => setProjectType(v as ProjectType)}>
+                <SelectTrigger><SelectValue placeholder="Chọn loại project" /></SelectTrigger>
+                <SelectContent>
+                  {PROJECT_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Demo / source checklist */}
+            <div className="space-y-2">
+              <Label>Tình trạng bàn giao</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <CheckRow id="hasDemo"        label="Có demo chạy được"       checked={hasDemo}        onChange={setHasDemo} />
+                <CheckRow id="hasSourceCode"  label="Có source code đầy đủ"   checked={hasSourceCode}  onChange={setHasSourceCode} />
+                <CheckRow id="hasDatabase"    label="Có database / schema"     checked={hasDatabase}    onChange={setHasDatabase} />
+                <CheckRow id="hasReadme"      label="Có README / setup guide"  checked={hasReadme}      onChange={setHasReadme} />
+                <CheckRow id="hasApiDocs"     label="Có API docs / Postman"    checked={hasApiDocs}     onChange={setHasApiDocs} />
+                <CheckRow id="hasScreenshots" label="Có screenshot / video"    checked={hasScreenshots} onChange={setHasScreenshots} />
+                <CheckRow id="hasTestAccount" label="Có tài khoản test"        checked={hasTestAccount} onChange={setHasTestAccount} />
+              </div>
+            </div>
+
+            {/* Code status */}
+            <div className="space-y-2">
+              <Label>Tình trạng code</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {CODE_STATUS_OPTIONS.map((o) => (
+                  <label
+                    key={o.value}
+                    className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 ${codeStatus === o.value ? "border-primary/50 bg-primary/5 font-medium text-primary" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="codeStatus"
+                      className="accent-primary"
+                      checked={codeStatus === o.value}
+                      onChange={() => setCodeStatus(o.value as CodeStatus)}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Valuation result */}
+            <ProjectValuationAssistant
+              input={valuationInput}
+              onUseSuggestedPrice={(p) => {
+                setPrice(String(p));
+                if (!handoverType) setHandoverType("SELL_SOURCE_CODE");
+              }}
+            />
+          </div>
+
+          {/* ── Handover & price ───────────────────────────────────────────── */}
+          <div className="rounded-xl border bg-card p-5 space-y-4">
+            <h2 className="font-semibold">Hình thức & mong muốn</h2>
+
+            <div className="space-y-2">
+              <Label>Bạn đang tìm gì? <span className="text-destructive">*</span></Label>
+              <Select value={handoverType} onValueChange={setHandoverType}>
+                <SelectTrigger><SelectValue placeholder="Chọn hình thức chuyển giao" /></SelectTrigger>
+                <SelectContent>
+                  {HANDOVER_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="looking">Mô tả thêm về người/team bạn muốn tìm</Label>
+              <Textarea
+                id="looking"
+                placeholder="vd: Tìm developer có kinh nghiệm React, hoặc startup muốn mua lại để tiếp tục phát triển"
+                rows={3}
+                value={lookingFor}
+                onChange={(e) => setLookingFor(e.target.value)}
+              />
+            </div>
+
+            {showPrice && (
+              <div className="space-y-2">
+                <Label htmlFor="price">Giá mong muốn (VNĐ) — để trống nếu thương lượng</Label>
+                {valuation && (
+                  <p className="text-xs text-muted-foreground">
+                    Gợi ý: {valuation.estimatedPriceLow.toLocaleString("vi-VN")}₫ – {valuation.estimatedPriceHigh.toLocaleString("vi-VN")}₫
+                  </p>
+                )}
+                <Input
+                  id="price"
+                  type="number"
+                  placeholder="vd: 5000000"
+                  min="1"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className={priceWarning === "high" ? "border-amber-400 focus-visible:ring-amber-400" : priceWarning === "low" ? "border-blue-400 focus-visible:ring-blue-400" : ""}
+                />
+                {price && Number(price) > 0 && (
+                  <p className="text-sm font-medium text-primary">
+                    {Number(price).toLocaleString("vi-VN")}₫
+                  </p>
+                )}
+
+                {/* Price warnings */}
+                {priceWarning === "high" && (
+                  <div className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-700/50 p-3 text-xs text-amber-800 dark:text-amber-300">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>Giá bạn nhập cao hơn khá nhiều so với mức gợi ý. Project vẫn có thể bán được nếu bạn bổ sung demo, tài liệu hoặc cam kết hỗ trợ sau bàn giao.</span>
                   </div>
-                ) : (
-                  <PricingCalculator onApply={handlePriceApply} />
+                )}
+                {priceWarning === "low" && (
+                  <div className="flex items-start gap-2 rounded-lg border border-blue-300/60 bg-blue-50/80 dark:bg-blue-900/20 dark:border-blue-700/50 p-3 text-xs text-blue-800 dark:text-blue-300">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>Giá này thấp hơn mức gợi ý. Project có thể dễ bán hơn, nhưng bạn nên cân nhắc công sức đã bỏ ra.</span>
+                  </div>
                 )}
               </div>
             )}
-
-            {collabMode === "Profit Sharing" && (
-              <div className="space-y-2">
-                <Label htmlFor="equity">{t("post.equity.label")}</Label>
-                <Input id="equity" type="number" placeholder="vd: 60" min="1" max="99" value={equitySplit} onChange={(e) => setEquitySplit(e.target.value)} />
-                <p className="text-xs text-muted-foreground">
-                  {t("post.equity.you")} {equitySplit || "—"}% · {t("post.equity.them")} {equitySplit ? 100 - Number(equitySplit) : "—"}%
-                </p>
-              </div>
-            )}
           </div>
 
-          <div className="space-y-2">
-            <Label>{t("post.upload")}</Label>
-            <div className="flex items-center justify-center rounded-xl border-2 border-dashed p-8 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground">{t("post.upload.drag")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{t("post.upload.limit")}</p>
-              </div>
+          {/* ── Optional ───────────────────────────────────────────────────── */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="demo">Link Demo / GitHub (tuỳ chọn)</Label>
+              <Input
+                id="demo"
+                placeholder="https://demo.example.com hoặc https://github.com/..."
+                value={demoUrl}
+                onChange={(e) => setDemoUrl(e.target.value)}
+              />
             </div>
           </div>
 
           <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Đang đăng..." : t("post.submit")}
+            {isSubmitting ? "Đang gửi..." : "Gửi đăng duyệt"}
           </Button>
         </form>
       </div>
