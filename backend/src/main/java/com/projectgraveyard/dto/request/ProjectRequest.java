@@ -36,29 +36,37 @@ public class ProjectRequest {
 
     private String imageUrl;
 
-    @NotNull(message = "Collaboration mode is required")
     private CollaborationMode collaborationMode;
 
-    @NotNull(message = "Price is required")
-    @Min(value = 1, message = "Price must be greater than 0")
     private Long price; // VND
 
     @Min(value = 0, message = "Equity split must be at least 0%")
     @Max(value = 100, message = "Equity split cannot exceed 100%")
     private Integer equitySplit; // %
 
-    @NotNull(message = "Seller type is required")
     private SellerType sellerType;
 
-    @NotNull(message = "Listing type is required")
     private ListingType listingType;
 
-    @NotNull(message = "License type is required")
+    private CompletionStatus completionStatus;
+
+    @Min(value = 0, message = "Completion percent must be at least 0%")
+    @Max(value = 100, message = "Completion percent cannot exceed 100%")
+    private Integer completionPercent;
+
+    private String completedParts;
+
+    private String missingParts;
+
+    private String currentStage;
+
+    private String githubUrl;
+
+    private List<String> imageUrls;
+
     private LicenseType licenseType;
 
     private String demoUrl;
 
-    @NotNull(message = "Support days is required")
-    @Min(value = 0, message = "Support days must be at least 0")
     private Integer supportDays;
 }

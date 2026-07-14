@@ -74,6 +74,28 @@ public class Project {
     private ListingType listingType;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "completion_status")
+    private CompletionStatus completionStatus;
+
+    private Integer completionPercent;
+
+    @Column(columnDefinition = "text")
+    private String completedParts;
+
+    @Column(columnDefinition = "text")
+    private String missingParts;
+
+    private String currentStage;
+
+    @Column(name = "github_url")
+    private String githubUrl;
+
+    @ElementCollection
+    @CollectionTable(name = "project_images", joinColumns = @JoinColumn(name = "project_id"))
+    @Column(name = "image_url")
+    private List<String> imageUrls;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "license_type")
     private LicenseType licenseType;
 

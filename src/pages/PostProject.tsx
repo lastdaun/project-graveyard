@@ -38,7 +38,7 @@ const PostProject = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(""); // mapping to progress / projectStatus
   const [skills, setSkills] = useState("");
   const [teamSize, setTeamSize] = useState("");
   const [collabMode, setCollabMode] = useState<CollaborationMode | "">("");
@@ -49,6 +49,20 @@ const PostProject = () => {
   const [equitySplit, setEquitySplit] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // New Fields from Sprint 2 / Flow new requirements
+  const [completionStatus, setCompletionStatus] = useState<"COMPLETED" | "INCOMPLETE" | "">("");
+  const [completionPercent, setCompletionPercent] = useState("");
+  const [completedParts, setCompletedParts] = useState("");
+  const [missingParts, setMissingParts] = useState("");
+  const [currentStage, setCurrentStage] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [imageUrlsText, setImageUrlsText] = useState(""); // comma separated for temporary URLs
+
+  // For completed projects details
+  const [completedFeatures, setCompletedFeatures] = useState("");
+  const [demoUrl, setDemoUrl] = useState("");
+  const [handoverInstructions, setHandoverInstructions] = useState("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -58,8 +72,18 @@ const PostProject = () => {
       return;
     }
 
-    if (!category || !status || !collabMode) {
-      toast.error("Vui lòng điền đầy đủ danh mục, trạng thái và hình thức hợp tác");
+    if (!category || !status || !collabMode || !completionStatus) {
+      toast.error("Vui lòng điền đầy đủ danh mục, trạng thái, hình thức hợp tác và tình trạng hoàn thiện");
+      return;
+    }
+
+    const imageList = imageUrlsText
+      .split(",")
+      .map((url) => url.trim())
+      .filter(Boolean);
+
+    if (imageList.length === 0) {
+      toast.error("Vui lòng thêm ít nhất 1 hình ảnh để admin dễ duyệt và buyer dễ đánh giá project.");
       return;
     }
 
@@ -73,15 +97,31 @@ const PostProject = () => {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    // Build descriptions or notes based on completeness
+    let finalDesc = description;
+    if (completionStatus === "COMPLETED") {
+      finalDesc += `\n\n**Tính năng hoàn thành:**\n${completedFeatures}\n\n**Hướng dẫn bàn giao:**\n${handoverInstructions}`;
+    }
+
     const payload: Record<string, unknown> = {
       title,
-      description,
+      description: finalDesc,
       category: CATEGORY_MAP[category] ?? category.toUpperCase(),
       status: STATUS_MAP[status] ?? status.toUpperCase(),
       collaborationMode: COLLAB_MODE_MAP[collabMode] ?? collabMode,
       skillsNeeded: skillsArray,
       teamSize: Number(teamSize) || 1,
-      progress: 0,
+      progress: completionStatus === "COMPLETED" ? 100 : Number(completionPercent) || 50,
+      listingType: "USER_PROJECT",
+      completionStatus,
+      completionPercent: completionStatus === "COMPLETED" ? 100 : Number(completionPercent) || null,
+      completedParts: completionStatus === "INCOMPLETE" ? completedParts : null,
+      missingParts: completionStatus === "INCOMPLETE" ? missingParts : null,
+      currentStage: completionStatus === "INCOMPLETE" ? currentStage : "COMPLETED",
+      githubUrl: githubUrl || null,
+      imageUrls: imageList,
+      demoUrl: demoUrl || null,
+      supportDays: 7, // default support
     };
 
     if (collabMode === "Sell Usage Rights" && price) {
@@ -125,7 +165,16 @@ const PostProject = () => {
   };
 
   const handlePriceApply = (p: number) => {
-    setAiPrice(p);
+    // Adjust pricing based on Completion Status (Phase 12 pricing logic)
+    // completedFactor = 1.1, incompleteFactor = completionPercent% (e.g. 0.6 if 60%)
+    let factor = 1.0;
+    if (completionStatus === "COMPLETED") {
+      factor = 1.1;
+    } else if (completionStatus === "INCOMPLETE") {
+      factor = (Number(completionPercent) || 50) / 100;
+    }
+    const adjustedPrice = Math.round(p * factor);
+    setAiPrice(adjustedPrice);
     setPriceMode("");
     setPrice("");
     setCustomPrice("");
@@ -163,7 +212,7 @@ const PostProject = () => {
 
           <div className="space-y-2">
             <Label htmlFor="desc">{t("post.desc")}</Label>
-            <Textarea id="desc" placeholder={t("post.desc.ph")} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} required />
+            <Textarea id="desc" placeholder={t("post.desc.ph")} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} required />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -190,6 +239,71 @@ const PostProject = () => {
             </div>
           </div>
 
+          {/* Completion Status Selection */}
+          <div className="rounded-xl border bg-muted/20 p-5 space-y-4">
+            <div className="space-y-2">
+              <Label>{t("post.completionStatus")}</Label>
+              <Select value={completionStatus} onValueChange={(v) => setCompletionStatus(v as "COMPLETED" | "INCOMPLETE")}>
+                <SelectTrigger><SelectValue placeholder={t("post.completionStatus.ph")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="COMPLETED">{t("post.completionStatus.completed")}</SelectItem>
+                  <SelectItem value="INCOMPLETE">{t("post.completionStatus.incomplete")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {completionStatus === "INCOMPLETE" && (
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="percent">{t("post.completionPercent")} (%)</Label>
+                  <Input id="percent" type="number" placeholder="vd: 60" min="1" max="99" value={completionPercent} onChange={(e) => setCompletionPercent(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="completedParts">{t("post.completedParts")}</Label>
+                  <Textarea id="completedParts" placeholder={t("post.completedParts.ph")} value={completedParts} onChange={(e) => setCompletedParts(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="missingParts">{t("post.missingParts")}</Label>
+                  <Textarea id="missingParts" placeholder={t("post.missingParts.ph")} value={missingParts} onChange={(e) => setMissingParts(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("post.currentStage")}</Label>
+                  <Select value={currentStage} onValueChange={setCurrentStage}>
+                    <SelectTrigger><SelectValue placeholder={t("post.currentStage.ph")} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Prototype">Prototype</SelectItem>
+                      <SelectItem value="MVP">MVP</SelectItem>
+                      <SelectItem value="Developing">Đang phát triển</SelectItem>
+                      <SelectItem value="AlmostDone">Gần xong</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {completionStatus === "COMPLETED" && (
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="features">Tính năng đã hoàn thành</Label>
+                  <Textarea id="features" placeholder="Mô tả các tính năng cốt lõi đã chạy ổn định..." value={completedFeatures} onChange={(e) => setCompletedFeatures(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="demoUrl">Demo URL</Label>
+                  <Input id="demoUrl" placeholder="https://example.com/demo" value={demoUrl} onChange={(e) => setDemoUrl(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instructions">Hướng dẫn cài đặt / bàn giao</Label>
+                  <Textarea id="instructions" placeholder="Hướng dẫn deploy hoặc chạy thử code..." value={handoverInstructions} onChange={(e) => setHandoverInstructions(e.target.value)} required />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="githubUrl">{t("post.githubUrl")}</Label>
+            <Input id="githubUrl" placeholder={t("post.githubUrl.ph")} value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="skills">{t("post.skills")}</Label>
             <Input id="skills" placeholder={t("post.skills.ph")} value={skills} onChange={(e) => setSkills(e.target.value)} />
@@ -198,6 +312,13 @@ const PostProject = () => {
           <div className="space-y-2">
             <Label htmlFor="team">{t("post.team")}</Label>
             <Input id="team" type="number" placeholder="vd: 3" min="1" max="20" value={teamSize} onChange={(e) => setTeamSize(e.target.value)} />
+          </div>
+
+          {/* Image URLs input temporary */}
+          <div className="space-y-2 rounded-xl border bg-muted/20 p-5">
+            <Label htmlFor="imageUrls">{t("post.imageUrls")}</Label>
+            <Input id="imageUrls" placeholder={t("post.imageUrl.ph")} value={imageUrlsText} onChange={(e) => setImageUrlsText(e.target.value)} required />
+            <p className="text-xs text-muted-foreground mt-1">Vui lòng nhập ít nhất 1 link ảnh (phân cách bằng dấu phẩy nếu nhiều ảnh)</p>
           </div>
 
           {/* Collaboration Mode */}
@@ -287,16 +408,6 @@ const PostProject = () => {
                 </p>
               </div>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t("post.upload")}</Label>
-            <div className="flex items-center justify-center rounded-xl border-2 border-dashed p-8 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground">{t("post.upload.drag")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{t("post.upload.limit")}</p>
-              </div>
-            </div>
           </div>
 
           <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>

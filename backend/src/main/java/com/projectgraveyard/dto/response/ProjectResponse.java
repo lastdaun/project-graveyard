@@ -26,6 +26,7 @@ public class ProjectResponse {
     private int currentMembers;
     private int progress;
     private String imageUrl;
+    private List<String> imageUrls;
     private CollaborationMode collaborationMode;
     private Long price;
     private Integer equitySplit;
@@ -35,6 +36,11 @@ public class ProjectResponse {
     private Integer soldCount;
     private SellerType sellerType;
     private ListingType listingType;
+    private CompletionStatus completionStatus;
+    private Integer completionPercent;
+    private String completedParts;
+    private String missingParts;
+    private String currentStage;
     private LicenseType licenseType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

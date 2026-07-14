@@ -19,6 +19,9 @@ export interface ApiUser {
   role: string;
 }
 
+export type ApiCompletionStatus = "INCOMPLETE" | "COMPLETED";
+export type ApiListingType = "COMPANY_PROJECT" | "USER_PROJECT";
+
 export interface ApiProject {
   id: number;
   title: string;
@@ -32,10 +35,18 @@ export interface ApiProject {
   currentMembers: number;
   progress: number;
   imageUrl?: string;
+  imageUrls?: string[];
   collaborationMode: ApiCollaborationMode;
   price?: number;
   equitySplit?: number;
   approved: boolean;
+  listingType?: ApiListingType;
+  completionStatus?: ApiCompletionStatus;
+  completionPercent?: number;
+  completedParts?: string;
+  missingParts?: string;
+  currentStage?: string;
+  githubUrl?: string; // only returned for owner/admin
   createdAt: string;
   updatedAt: string;
 }

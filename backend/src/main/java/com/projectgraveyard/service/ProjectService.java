@@ -58,6 +58,12 @@ public class ProjectService {
     public ProjectResponse createProject(ProjectRequest request, User creator) {
         log.info("Creating new project: '{}' by creator: {}", request.getTitle(), creator.getEmail());
 
+        // For regular users, force listingType to USER_PROJECT, approved=false, and PENDING_REVIEW
+        ListingType finalListingType = creator.getRole() == Role.ADMIN ? request.getListingType() : ListingType.USER_PROJECT;
+        if (finalListingType == null) {
+            finalListingType = ListingType.USER_PROJECT;
+        }
+
         Project project = Project.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -70,12 +76,19 @@ public class ProjectService {
                 .currentMembers(1) // Creator joins automatically
                 .progress(request.getProgress())
                 .imageUrl(request.getImageUrl())
+                .imageUrls(request.getImageUrls())
                 .collaborationMode(request.getCollaborationMode())
                 .price(request.getPrice())
                 .equitySplit(request.getEquitySplit())
                 .approved(false)
                 .sellerType(request.getSellerType())
-                .listingType(request.getListingType())
+                .listingType(finalListingType)
+                .completionStatus(request.getCompletionStatus())
+                .completionPercent(request.getCompletionPercent())
+                .completedParts(request.getCompletedParts())
+                .missingParts(request.getMissingParts())
+                .currentStage(request.getCurrentStage())
+                .githubUrl(request.getGithubUrl())
                 .licenseType(request.getLicenseType())
                 .demoUrl(request.getDemoUrl())
                 .supportDays(request.getSupportDays())
@@ -120,11 +133,21 @@ public class ProjectService {
         project.setTeamSize(request.getTeamSize());
         project.setProgress(request.getProgress());
         project.setImageUrl(request.getImageUrl());
+        project.setImageUrls(request.getImageUrls());
         project.setCollaborationMode(request.getCollaborationMode());
         project.setPrice(request.getPrice());
         project.setEquitySplit(request.getEquitySplit());
         project.setSellerType(request.getSellerType());
-        project.setListingType(request.getListingType());
+        // For regular users, prevent changing listingType to COMPANY_PROJECT
+        if (currentUser.getRole() == Role.ADMIN) {
+            project.setListingType(request.getListingType());
+        }
+        project.setCompletionStatus(request.getCompletionStatus());
+        project.setCompletionPercent(request.getCompletionPercent());
+        project.setCompletedParts(request.getCompletedParts());
+        project.setMissingParts(request.getMissingParts());
+        project.setCurrentStage(request.getCurrentStage());
+        project.setGithubUrl(request.getGithubUrl());
         project.setLicenseType(request.getLicenseType());
         project.setDemoUrl(request.getDemoUrl());
         project.setSupportDays(request.getSupportDays());
@@ -222,6 +245,7 @@ public class ProjectService {
                 .currentMembers(project.getCurrentMembers())
                 .progress(project.getProgress())
                 .imageUrl(project.getImageUrl())
+                .imageUrls(project.getImageUrls())
                 .collaborationMode(project.getCollaborationMode())
                 .price(project.getPrice())
                 .equitySplit(project.getEquitySplit())
@@ -231,6 +255,11 @@ public class ProjectService {
                 .soldCount(project.getSoldCount())
                 .sellerType(project.getSellerType())
                 .listingType(project.getListingType())
+                .completionStatus(project.getCompletionStatus())
+                .completionPercent(project.getCompletionPercent())
+                .completedParts(project.getCompletedParts())
+                .missingParts(project.getMissingParts())
+                .currentStage(project.getCurrentStage())
                 .licenseType(project.getLicenseType())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
