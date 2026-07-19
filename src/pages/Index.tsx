@@ -18,14 +18,18 @@ const testimonials = [
 
 const Landing = () => {
   const { t } = useLanguage();
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
+  const [companyProjects, setCompanyProjects] = useState<Project[]>([]);
+  const [communityProjects, setCommunityProjects] = useState<Project[]>([]);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
 
   useEffect(() => {
-    fetch("/api/projects?size=3&sort=createdAt,desc")
-      .then((r) => r.json())
-      .then((body: ApiResponse<ApiPage<ApiProject>>) => {
-        setFeaturedProjects((body.data?.content ?? []).map(adaptApiProject));
+    Promise.all([
+      fetch("/api/projects?listingType=COMPANY_PROJECT&size=3&sort=createdAt,desc").then((r) => r.json()),
+      fetch("/api/projects?listingType=USER_INCOMPLETE_PROJECT&size=3&sort=createdAt,desc").then((r) => r.json()),
+    ])
+      .then(([companyBody, communityBody]: [ApiResponse<ApiPage<ApiProject>>, ApiResponse<ApiPage<ApiProject>>]) => {
+        setCompanyProjects((companyBody.data?.content ?? []).map(adaptApiProject));
+        setCommunityProjects((communityBody.data?.content ?? []).map(adaptApiProject));
       })
       .catch(() => {})
       .finally(() => setLoadingFeatured(false));
@@ -59,8 +63,8 @@ const Landing = () => {
               className="mb-6 text-4xl md:text-6xl font-bold tracking-tight text-foreground"
               style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}
             >
-              Biến dự án bỏ dở thành <br className="hidden md:block" />
-              <span className="text-primary" style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}>tài sản giá trị</span>
+              Mua bán project IT <br className="hidden md:block" />
+              <span className="text-primary" style={{ fontFamily: "'Inter', 'Roboto', 'Helvetica Neue', sans-serif" }}>hoàn thiện & chưa hoàn thiện</span>
             </h1>
             <p className="mb-8 text-lg text-muted-foreground md:text-xl">{t("landing.subtitle")}</p>
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -103,30 +107,58 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Featured projects */}
+      {/* Company projects */}
       <section className="border-t">
         <div className="container py-20">
           <div className="mb-10 flex items-end justify-between">
             <div>
-              <h2 className="font-display text-3xl font-bold">{t("landing.featured.title")}</h2>
-              <p className="mt-2 text-muted-foreground">{t("landing.featured.sub")}</p>
+              <h2 className="font-display text-3xl font-bold">Sản phẩm hoàn thiện từ công ty</h2>
+              <p className="mt-2 text-muted-foreground">Project do Admin đăng, sẵn sàng mua và bàn giao</p>
             </div>
             <Link to="/explore" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">
-              {t("landing.featured.all")} <ArrowRight className="h-3.5 w-3.5" />
+              Xem tất cả <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
           {loadingFeatured ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : featuredProjects.length > 0 ? (
+          ) : companyProjects.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {featuredProjects.map((p) => (
+              {companyProjects.map((p) => (
                 <ProjectCard key={p.id} project={p} />
               ))}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-10">Chưa có dự án nào. Hãy là người đầu tiên đăng!</p>
+            <p className="text-center text-muted-foreground py-10">Chưa có sản phẩm công ty.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Community incomplete projects */}
+      <section className="border-t bg-muted/20">
+        <div className="container py-20">
+          <div className="mb-10 flex items-end justify-between">
+            <div>
+              <h2 className="font-display text-3xl font-bold">Project chưa hoàn thiện từ cộng đồng</h2>
+              <p className="mt-2 text-muted-foreground">User đăng, đã qua duyệt Admin</p>
+            </div>
+            <Link to="/explore" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">
+              Xem tất cả <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          {loadingFeatured ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : communityProjects.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {communityProjects.map((p) => (
+                <ProjectCard key={p.id} project={p} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-10">Chưa có project cộng đồng. Hãy đăng project chưa hoàn thiện của bạn!</p>
           )}
         </div>
       </section>
@@ -181,7 +213,7 @@ const Landing = () => {
           <h2 className="mb-4 font-display text-3xl font-bold">{t("landing.cta2.title")}</h2>
           <p className="mx-auto mb-8 max-w-xl text-muted-foreground">{t("landing.cta2.sub")}</p>
           <div className="flex justify-center gap-3">
-            <Link to="/explore">
+            <Link to="/login?mode=signup">
               <Button size="lg">{t("landing.cta2.btn")}</Button>
             </Link>
           </div>

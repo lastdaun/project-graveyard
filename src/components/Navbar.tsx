@@ -34,9 +34,8 @@ const Navbar = () => {
     { label: t("nav.home"), to: "/" },
     { label: t("nav.explore"), to: "/explore" },
     { label: t("nav.post"), to: "/post" },
-    { label: t("nav.pricing"), to: "/pricing" },
-    { label: t("nav.transactions"), to: "/transactions" },
     { label: t("nav.profile"), to: "/profile" },
+    ...(user?.role === "ADMIN" ? [{ label: "Admin", to: "/admin" }] : []),
   ];
 
   return (
@@ -78,7 +77,7 @@ const Navbar = () => {
               <Link to="/login">
                 <Button variant="ghost" size="sm">{t("nav.login")}</Button>
               </Link>
-              <Link to="/login">
+              <Link to="/login?mode=signup">
                 <Button size="sm">{t("nav.signup")}</Button>
               </Link>
             </>
@@ -126,7 +125,7 @@ const Navbar = () => {
                 <Link to="/login" className="flex-1" onClick={() => setMobileOpen(false)}>
                   <Button variant="ghost" size="sm" className="w-full">{t("nav.login")}</Button>
                 </Link>
-                <Link to="/login" className="flex-1" onClick={() => setMobileOpen(false)}>
+                <Link to="/login?mode=signup" className="flex-1" onClick={() => setMobileOpen(false)}>
                   <Button size="sm" className="w-full">{t("nav.signup")}</Button>
                 </Link>
               </div>

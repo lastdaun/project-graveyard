@@ -32,7 +32,6 @@ public class ProjectResponse {
     private Integer equitySplit;
     private boolean approved;
     private ReviewStatus reviewStatus;
-    private String rejectionReason;
     private Integer soldCount;
     private SellerType sellerType;
     private ListingType listingType;
@@ -42,6 +41,17 @@ public class ProjectResponse {
     private String missingParts;
     private String currentStage;
     private LicenseType licenseType;
+    private String demoUrl;
+    private Long estimatedPriceLow;
+    private Long estimatedPriceSuggested;
+    private Long estimatedPriceHigh;
+    private Integer valuationScore;
+    private String valuationConfidence;
+    private String valuationNote;
+    private String companyName;
+    private String companyWebsite;
+    private String companyEmail;
+    private String companyPhone;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

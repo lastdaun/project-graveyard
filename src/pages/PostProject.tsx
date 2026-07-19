@@ -8,18 +8,10 @@ import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
-import type { CollaborationMode } from "@/data/mockData";
 import PricingCalculator from "@/components/PricingCalculator";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Lock } from "lucide-react";
 import { apiFetch, isAuthenticated } from "@/lib/api";
-
-const COLLAB_MODE_MAP: Record<string, string> = {
-  "Free Collaboration": "FREE_COLLABORATION",
-  "Profit Sharing": "PROFIT_SHARING",
-  "Sell Usage Rights": "SELL_USAGE_RIGHTS",
-  "Find Co-founder": "FIND_COFOUNDER",
-};
 
 const STATUS_MAP: Record<string, string> = {
   "Ý tưởng": "IDEA",
@@ -38,30 +30,27 @@ const PostProject = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [status, setStatus] = useState(""); // mapping to progress / projectStatus
-  const [skills, setSkills] = useState("");
-  const [teamSize, setTeamSize] = useState("");
-  const [collabMode, setCollabMode] = useState<CollaborationMode | "">("");
+  const [status, setStatus] = useState("Đang phát triển");
+  const [techStack, setTechStack] = useState("");
   const [price, setPrice] = useState("");
-  const [aiPrice, setAiPrice] = useState(0);
+  const [priceLow, setPriceLow] = useState(0);
+  const [priceSuggested, setPriceSuggested] = useState(0);
+  const [priceHigh, setPriceHigh] = useState(0);
+  const [valuationScore, setValuationScore] = useState(0);
   const [priceMode, setPriceMode] = useState<"recommended" | "custom" | "">("");
   const [customPrice, setCustomPrice] = useState("");
-  const [equitySplit, setEquitySplit] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // New Fields from Sprint 2 / Flow new requirements
-  const [completionStatus, setCompletionStatus] = useState<"COMPLETED" | "INCOMPLETE" | "">("");
   const [completionPercent, setCompletionPercent] = useState("");
   const [completedParts, setCompletedParts] = useState("");
   const [missingParts, setMissingParts] = useState("");
   const [currentStage, setCurrentStage] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
-  const [imageUrlsText, setImageUrlsText] = useState(""); // comma separated for temporary URLs
-
-  // For completed projects details
-  const [completedFeatures, setCompletedFeatures] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
-  const [handoverInstructions, setHandoverInstructions] = useState("");
+  const [imageUrlsText, setImageUrlsText] = useState("");
+  const [hasFullSource, setHasFullSource] = useState(true);
+  const [hasReadme, setHasReadme] = useState(false);
+  const [hasDbSchema, setHasDbSchema] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,8 +61,13 @@ const PostProject = () => {
       return;
     }
 
-    if (!category || !status || !collabMode || !completionStatus) {
-      toast.error("Vui lòng điền đầy đủ danh mục, trạng thái, hình thức hợp tác và tình trạng hoàn thiện");
+    if (!category || !completionPercent || !completedParts || !missingParts || !currentStage) {
+      toast.error("Vui lòng điền đầy đủ thông tin project chưa hoàn thiện");
+      return;
+    }
+
+    if (!githubUrl.trim()) {
+      toast.error("GitHub URL là bắt buộc (chỉ Admin thấy khi duyệt)");
       return;
     }
 
@@ -83,54 +77,48 @@ const PostProject = () => {
       .filter(Boolean);
 
     if (imageList.length === 0) {
-      toast.error("Vui lòng thêm ít nhất 1 hình ảnh để admin dễ duyệt và buyer dễ đánh giá project.");
+      toast.error("Vui lòng thêm ít nhất 1 hình ảnh project");
       return;
     }
 
-    if (collabMode === "Sell Usage Rights" && !price) {
-      toast.error("Vui lòng chọn hoặc nhập giá bán cho dự án");
+    if (!price) {
+      toast.error("Vui lòng chọn hoặc nhập giá mong muốn");
       return;
     }
 
-    const skillsArray = skills
+    const techArray = techStack
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
 
-    // Build descriptions or notes based on completeness
-    let finalDesc = description;
-    if (completionStatus === "COMPLETED") {
-      finalDesc += `\n\n**Tính năng hoàn thành:**\n${completedFeatures}\n\n**Hướng dẫn bàn giao:**\n${handoverInstructions}`;
-    }
-
-    const payload: Record<string, unknown> = {
+    const percent = Number(completionPercent) || 0;
+    const payload = {
       title,
-      description: finalDesc,
+      description,
       category: CATEGORY_MAP[category] ?? category.toUpperCase(),
-      status: STATUS_MAP[status] ?? status.toUpperCase(),
-      collaborationMode: COLLAB_MODE_MAP[collabMode] ?? collabMode,
-      skillsNeeded: skillsArray,
-      teamSize: Number(teamSize) || 1,
-      progress: completionStatus === "COMPLETED" ? 100 : Number(completionPercent) || 50,
-      listingType: "USER_PROJECT",
-      completionStatus,
-      completionPercent: completionStatus === "COMPLETED" ? 100 : Number(completionPercent) || null,
-      completedParts: completionStatus === "INCOMPLETE" ? completedParts : null,
-      missingParts: completionStatus === "INCOMPLETE" ? missingParts : null,
-      currentStage: completionStatus === "INCOMPLETE" ? currentStage : "COMPLETED",
-      githubUrl: githubUrl || null,
+      status: STATUS_MAP[status] ?? "DEVELOPING",
+      collaborationMode: "SELL_USAGE_RIGHTS",
+      techStack: techArray,
+      skillsNeeded: techArray,
+      teamSize: 1,
+      progress: percent,
+      listingType: "USER_INCOMPLETE_PROJECT",
+      completionStatus: "INCOMPLETE",
+      completionPercent: percent,
+      completedParts,
+      missingParts,
+      currentStage,
+      githubUrl: githubUrl.trim(),
       imageUrls: imageList,
       demoUrl: demoUrl || null,
-      supportDays: 7, // default support
+      price: Number(price),
+      estimatedPriceLow: priceLow || null,
+      estimatedPriceSuggested: priceSuggested || null,
+      estimatedPriceHigh: priceHigh || null,
+      valuationScore: valuationScore || null,
+      valuationConfidence: percent >= 70 ? "HIGH" : percent >= 40 ? "MEDIUM" : "LOW",
+      valuationNote: `Gợi ý giá mềm cho project ${percent}% hoàn thiện`,
     };
-
-    if (collabMode === "Sell Usage Rights" && price) {
-      payload.price = Number(price);
-    }
-
-    if (collabMode === "Profit Sharing" && equitySplit) {
-      payload.equitySplit = Number(equitySplit);
-    }
 
     setIsSubmitting(true);
     try {
@@ -154,8 +142,8 @@ const PostProject = () => {
         throw new Error(msg);
       }
 
-      toast.success(t("post.success"));
-      navigate("/explore");
+      toast.success("Đã gửi project chờ Admin duyệt");
+      navigate("/profile?tab=listings");
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Đã xảy ra lỗi khi kết nối máy chủ";
       toast.error(msg);
@@ -164,254 +152,223 @@ const PostProject = () => {
     }
   };
 
-  const handlePriceApply = (p: number) => {
-    // Adjust pricing based on Completion Status (Phase 12 pricing logic)
-    // completedFactor = 1.1, incompleteFactor = completionPercent% (e.g. 0.6 if 60%)
-    let factor = 1.0;
-    if (completionStatus === "COMPLETED") {
-      factor = 1.1;
-    } else if (completionStatus === "INCOMPLETE") {
-      factor = (Number(completionPercent) || 50) / 100;
-    }
-    const adjustedPrice = Math.round(p * factor);
-    setAiPrice(adjustedPrice);
+  const handlePriceApply = (basePrice: number) => {
+    const percent = Number(completionPercent) || 50;
+    let factor = percent / 100;
+    if (demoUrl) factor += 0.08;
+    if (hasFullSource) factor += 0.05;
+    if (hasReadme) factor += 0.03;
+    if (hasDbSchema) factor += 0.04;
+    // Soft pricing — don't go too high
+    factor = Math.min(factor, 0.95);
+
+    const suggested = Math.round(basePrice * factor);
+    const low = Math.round(suggested * 0.7);
+    const high = Math.round(suggested * 1.25);
+    const score = Math.min(100, Math.round(percent + (demoUrl ? 10 : 0) + (hasReadme ? 5 : 0)));
+
+    setPriceLow(low);
+    setPriceSuggested(suggested);
+    setPriceHigh(high);
+    setValuationScore(score);
     setPriceMode("");
     setPrice("");
     setCustomPrice("");
   };
 
   const handleUseRecommended = () => {
-    setPrice(String(aiPrice));
+    setPrice(String(priceSuggested));
     setPriceMode("recommended");
     toast.success(t("post.price.applied"));
   };
 
-  const handleUseCustom = () => {
-    setPriceMode("custom");
-  };
+  const handleUseCustom = () => setPriceMode("custom");
 
   const handleCustomPriceConfirm = () => {
     setPrice(customPrice);
     toast.success(t("post.price.applied"));
   };
 
-  const customExceeds30 = customPrice && aiPrice > 0 && Number(customPrice) > aiPrice * 1.3;
+  const customExceeds30 =
+    customPrice && priceSuggested > 0 && Number(customPrice) > priceSuggested * 1.3;
 
   return (
     <div className="min-h-screen">
       <Navbar />
       <div className="container max-w-2xl py-10">
-        <h1 className="mb-2 font-display text-3xl font-bold">{t("post.title")}</h1>
-        <p className="mb-8 text-muted-foreground">{t("post.sub")}</p>
+        <h1 className="mb-2 font-display text-3xl font-bold">Đăng project chưa hoàn thiện</h1>
+        <p className="mb-8 text-muted-foreground">
+          User chỉ đăng project chưa hoàn thiện. Admin sẽ duyệt trước khi public. GitHub link chỉ Admin thấy.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="title">{t("post.name")}</Label>
-            <Input id="title" placeholder={t("post.name.ph")} value={title} onChange={(e) => setTitle(e.target.value)} required />
+            <Label htmlFor="title">Tên project</Label>
+            <Input id="title" placeholder="vd: Marketplace CRUD app" value={title} onChange={(e) => setTitle(e.target.value)} required />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="desc">{t("post.desc")}</Label>
-            <Textarea id="desc" placeholder={t("post.desc.ph")} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} required />
+            <Label htmlFor="desc">Mô tả</Label>
+            <Textarea id="desc" placeholder="Mô tả project, mục tiêu, stack..." rows={4} value={description} onChange={(e) => setDescription(e.target.value)} required />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>{t("post.category")}</Label>
+              <Label>Category</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue placeholder={t("post.category.ph")} /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Chọn category" /></SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="IT">IT / Phần mềm</SelectItem>
-                    <SelectItem value="Startup IT">Startup IT</SelectItem>
+                  <SelectItem value="IT">IT / Phần mềm</SelectItem>
+                  <SelectItem value="Startup IT">Startup IT</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t("post.status")}</Label>
+              <Label>Giai đoạn (status)</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger><SelectValue placeholder={t("post.status.ph")} /></SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Ý tưởng">{t("status.idea")}</SelectItem>
-                  <SelectItem value="Nguyên mẫu">{t("status.prototype")}</SelectItem>
-                  <SelectItem value="Đang phát triển">{t("status.developing")}</SelectItem>
+                  <SelectItem value="Ý tưởng">Ý tưởng</SelectItem>
+                  <SelectItem value="Nguyên mẫu">Nguyên mẫu</SelectItem>
+                  <SelectItem value="Đang phát triển">Đang phát triển</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Completion Status Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="tech">Tech stack</Label>
+            <Input id="tech" placeholder="React, Spring Boot, PostgreSQL" value={techStack} onChange={(e) => setTechStack(e.target.value)} />
+          </div>
+
           <div className="rounded-xl border bg-muted/20 p-5 space-y-4">
+            <h2 className="font-display font-semibold">Tình trạng hoàn thiện</h2>
             <div className="space-y-2">
-              <Label>{t("post.completionStatus")}</Label>
-              <Select value={completionStatus} onValueChange={(v) => setCompletionStatus(v as "COMPLETED" | "INCOMPLETE")}>
-                <SelectTrigger><SelectValue placeholder={t("post.completionStatus.ph")} /></SelectTrigger>
+              <Label htmlFor="percent">% hoàn thiện</Label>
+              <Input id="percent" type="number" placeholder="vd: 60" min="1" max="99" value={completionPercent} onChange={(e) => setCompletionPercent(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Giai đoạn hiện tại</Label>
+              <Select value={currentStage} onValueChange={setCurrentStage}>
+                <SelectTrigger><SelectValue placeholder="Chọn giai đoạn" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="COMPLETED">{t("post.completionStatus.completed")}</SelectItem>
-                  <SelectItem value="INCOMPLETE">{t("post.completionStatus.incomplete")}</SelectItem>
+                  <SelectItem value="Prototype">Prototype</SelectItem>
+                  <SelectItem value="MVP">MVP</SelectItem>
+                  <SelectItem value="Developing">Đang phát triển</SelectItem>
+                  <SelectItem value="AlmostDone">Gần xong</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="completedParts">Phần đã làm</Label>
+              <Textarea id="completedParts" placeholder="Auth, CRUD sản phẩm, UI cơ bản..." value={completedParts} onChange={(e) => setCompletedParts(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="missingParts">Phần còn thiếu</Label>
+              <Textarea id="missingParts" placeholder="Payment, admin panel, deploy..." value={missingParts} onChange={(e) => setMissingParts(e.target.value)} required />
+            </div>
+          </div>
 
-            {completionStatus === "INCOMPLETE" && (
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="percent">{t("post.completionPercent")} (%)</Label>
-                  <Input id="percent" type="number" placeholder="vd: 60" min="1" max="99" value={completionPercent} onChange={(e) => setCompletionPercent(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="completedParts">{t("post.completedParts")}</Label>
-                  <Textarea id="completedParts" placeholder={t("post.completedParts.ph")} value={completedParts} onChange={(e) => setCompletedParts(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="missingParts">{t("post.missingParts")}</Label>
-                  <Textarea id="missingParts" placeholder={t("post.missingParts.ph")} value={missingParts} onChange={(e) => setMissingParts(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("post.currentStage")}</Label>
-                  <Select value={currentStage} onValueChange={setCurrentStage}>
-                    <SelectTrigger><SelectValue placeholder={t("post.currentStage.ph")} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Prototype">Prototype</SelectItem>
-                      <SelectItem value="MVP">MVP</SelectItem>
-                      <SelectItem value="Developing">Đang phát triển</SelectItem>
-                      <SelectItem value="AlmostDone">Gần xong</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {completionStatus === "COMPLETED" && (
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="features">Tính năng đã hoàn thành</Label>
-                  <Textarea id="features" placeholder="Mô tả các tính năng cốt lõi đã chạy ổn định..." value={completedFeatures} onChange={(e) => setCompletedFeatures(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="demoUrl">Demo URL</Label>
-                  <Input id="demoUrl" placeholder="https://example.com/demo" value={demoUrl} onChange={(e) => setDemoUrl(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="instructions">Hướng dẫn cài đặt / bàn giao</Label>
-                  <Textarea id="instructions" placeholder="Hướng dẫn deploy hoặc chạy thử code..." value={handoverInstructions} onChange={(e) => setHandoverInstructions(e.target.value)} required />
-                </div>
-              </div>
-            )}
+          <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/50 p-5">
+            <Label htmlFor="githubUrl" className="flex items-center gap-2">
+              <Lock className="h-4 w-4" /> GitHub URL (riêng tư — chỉ Admin thấy)
+            </Label>
+            <Input id="githubUrl" placeholder="https://github.com/you/project" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} required />
+            <p className="text-xs text-muted-foreground">Buyer và public không thấy link này.</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="githubUrl">{t("post.githubUrl")}</Label>
-            <Input id="githubUrl" placeholder={t("post.githubUrl.ph")} value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+            <Label htmlFor="demoUrl">Demo URL (nếu có)</Label>
+            <Input id="demoUrl" placeholder="https://demo.example.com" value={demoUrl} onChange={(e) => setDemoUrl(e.target.value)} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="skills">{t("post.skills")}</Label>
-            <Input id="skills" placeholder={t("post.skills.ph")} value={skills} onChange={(e) => setSkills(e.target.value)} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="team">{t("post.team")}</Label>
-            <Input id="team" type="number" placeholder="vd: 3" min="1" max="20" value={teamSize} onChange={(e) => setTeamSize(e.target.value)} />
-          </div>
-
-          {/* Image URLs input temporary */}
           <div className="space-y-2 rounded-xl border bg-muted/20 p-5">
-            <Label htmlFor="imageUrls">{t("post.imageUrls")}</Label>
-            <Input id="imageUrls" placeholder={t("post.imageUrl.ph")} value={imageUrlsText} onChange={(e) => setImageUrlsText(e.target.value)} required />
-            <p className="text-xs text-muted-foreground mt-1">Vui lòng nhập ít nhất 1 link ảnh (phân cách bằng dấu phẩy nếu nhiều ảnh)</p>
+            <Label htmlFor="imageUrls">Hình ảnh project (bắt buộc)</Label>
+            <Input id="imageUrls" placeholder="https://.../img1.png, https://.../img2.png" value={imageUrlsText} onChange={(e) => setImageUrlsText(e.target.value)} required />
+            <p className="text-xs text-muted-foreground mt-1">Nhập ít nhất 1 link ảnh, phân cách bằng dấu phẩy</p>
           </div>
 
-          {/* Collaboration Mode */}
+          <div className="rounded-xl border bg-muted/20 p-5 space-y-3">
+            <h2 className="font-display font-semibold">Thông tin định giá</h2>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={hasFullSource} onChange={(e) => setHasFullSource(e.target.checked)} />
+              Có source đầy đủ
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={hasReadme} onChange={(e) => setHasReadme(e.target.checked)} />
+              Có README
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={hasDbSchema} onChange={(e) => setHasDbSchema(e.target.checked)} />
+              Có database/schema
+            </label>
+          </div>
+
           <div className="rounded-xl border bg-muted/30 p-5 space-y-4">
-            <h2 className="font-display font-semibold">{t("post.collab.title")}</h2>
-            <div className="space-y-2">
-              <Label>{t("post.collab.question")}</Label>
-              <Select value={collabMode} onValueChange={(v) => { setCollabMode(v as CollaborationMode); setPrice(""); setAiPrice(0); setPriceMode(""); setCustomPrice(""); }}>
-                <SelectTrigger><SelectValue placeholder={t("post.collab.ph")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Free Collaboration">{t("post.collab.free")}</SelectItem>
-                  <SelectItem value="Profit Sharing">{t("post.collab.profit")}</SelectItem>
-                  <SelectItem value="Sell Usage Rights">{t("post.collab.sell")}</SelectItem>
-                  <SelectItem value="Find Co-founder">{t("post.collab.cofounder")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <h2 className="font-display font-semibold">Bộ tính giá & giá mong muốn</h2>
+            {priceSuggested > 0 ? (
+              <div className="space-y-3">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Giá bán nhanh</p>
+                    <p className="font-semibold">{priceLow.toLocaleString("vi-VN")}₫</p>
+                  </div>
+                  <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-3">
+                    <p className="text-xs text-muted-foreground">Giá đề xuất</p>
+                    <p className="font-display text-lg font-bold">{priceSuggested.toLocaleString("vi-VN")}₫</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Giá cao có thể thử</p>
+                    <p className="font-semibold">{priceHigh.toLocaleString("vi-VN")}₫</p>
+                  </div>
+                </div>
 
-            {collabMode === "Sell Usage Rights" && (
-              <div className="space-y-2">
-                <Label>{t("post.pricing.label")}</Label>
-                {aiPrice > 0 ? (
-                  <div className="space-y-3">
-                    <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
-                      <p className="text-xs text-muted-foreground">{t("post.pricing.recommended")}</p>
-                      <p className="font-display text-xl font-bold">{aiPrice.toLocaleString("vi-VN")}₫</p>
+                {!price && (
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={handleUseRecommended} className="flex-1">
+                      Dùng giá đề xuất
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={handleUseCustom} className="flex-1">
+                      Nhập giá mong muốn
+                    </Button>
+                  </div>
+                )}
+
+                {priceMode === "custom" && !price && (
+                  <div className="space-y-2">
+                    <Label>Giá mong muốn (VND)</Label>
+                    <div className="flex gap-2">
+                      <Input type="number" placeholder="vd: 5000000" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} />
+                      <Button type="button" size="sm" onClick={handleCustomPriceConfirm} disabled={!customPrice}>OK</Button>
                     </div>
-
-                    {!price && (
-                      <div className="flex gap-2">
-                        <Button type="button" size="sm" onClick={handleUseRecommended} className="flex-1">
-                          {t("post.price.use_recommended")}
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={handleUseCustom} className="flex-1">
-                          {t("post.price.custom")}
-                        </Button>
-                      </div>
-                    )}
-
-                    {priceMode === "custom" && !price && (
-                      <div className="space-y-2">
-                        <Label>{t("post.price.custom_label")}</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            placeholder="vd: 15000000"
-                            value={customPrice}
-                            onChange={(e) => setCustomPrice(e.target.value)}
-                          />
-                          <Button type="button" size="sm" onClick={handleCustomPriceConfirm} disabled={!customPrice}>
-                            OK
-                          </Button>
-                        </div>
-                        {customExceeds30 && (
-                          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
-                            <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                            <p className="text-xs text-warning">{t("post.price.warning")}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {price && (
-                      <div className="rounded-xl border bg-card p-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">{priceMode === "custom" ? t("post.price.custom") : t("post.price.use_recommended")}</p>
-                          <p className="font-display text-xl font-bold">{Number(price).toLocaleString("vi-VN")}₫</p>
-                        </div>
-                        <Button type="button" size="sm" variant="outline" onClick={() => { setPrice(""); setAiPrice(0); setPriceMode(""); setCustomPrice(""); }}>
-                          {t("post.pricing.recalc")}
-                        </Button>
+                    {customExceeds30 && (
+                      <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                        <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                        <p className="text-xs text-warning">Giá cao hơn đề xuất &gt;30%. Nên cân nhắc để dễ bán.</p>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <PricingCalculator onApply={handlePriceApply} />
+                )}
+
+                {price && (
+                  <div className="rounded-xl border bg-card p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Giá mong muốn</p>
+                      <p className="font-display text-xl font-bold">{Number(price).toLocaleString("vi-VN")}₫</p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => { setPrice(""); setPriceSuggested(0); setPriceMode(""); }}>
+                      Tính lại
+                    </Button>
+                  </div>
                 )}
               </div>
-            )}
-
-            {collabMode === "Profit Sharing" && (
-              <div className="space-y-2">
-                <Label htmlFor="equity">{t("post.equity.label")}</Label>
-                <Input id="equity" type="number" placeholder="vd: 60" min="1" max="99" value={equitySplit} onChange={(e) => setEquitySplit(e.target.value)} />
-                <p className="text-xs text-muted-foreground">
-                  {t("post.equity.you")} {equitySplit || "—"}% · {t("post.equity.them")} {equitySplit ? 100 - Number(equitySplit) : "—"}%
-                </p>
-              </div>
+            ) : (
+              <PricingCalculator onApply={handlePriceApply} />
             )}
           </div>
 
           <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Đang đăng..." : t("post.submit")}
+            {isSubmitting ? "Đang gửi..." : "Gửi chờ duyệt"}
           </Button>
         </form>
       </div>

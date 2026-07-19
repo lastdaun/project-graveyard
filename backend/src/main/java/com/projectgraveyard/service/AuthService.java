@@ -38,7 +38,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
-                .role(request.getRole())
+                .role(Role.USER)
                 .accountType(AccountType.FREE)
                 .verified(false)
                 .build();

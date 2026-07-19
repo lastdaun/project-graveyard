@@ -1,614 +1,311 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Clock, AlertTriangle, Skull, CheckCircle, XCircle,
-  Shield, Ban, Eye, Settings, Save, Users, Wallet, TrendingUp, ArrowUpRight,
+  Clock, CheckCircle, XCircle, Wallet, Plus, ExternalLink, Loader2, Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  ChartContainer, ChartTooltip, ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis, Cell, PieChart, Pie } from "recharts";
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { usePricingConfig, type PricingConfig } from "@/contexts/PricingConfigContext";
+import { apiFetch, adaptApiProject, isAdmin, isAuthenticated } from "@/lib/api";
+import type { ApiOrder, ApiProject, ApiResponse } from "@/types/api";
+import type { Project } from "@/data/mockData";
 
-const sidebarIds = ["overview", "pending", "reported", "users", "transactions", "pricingConfig"] as const;
-
-const pendingProjectsData = [
-  { id: "p1", name: "AI Tutor Bot", creator: "Liam Torres", date: "2026-03-18", requestedPrice: 16_250_000, aiPrice: 12_500_000 },
-  { id: "p2", name: "Campus Carpool", creator: "Priya Gupta", date: "2026-03-17", requestedPrice: null, aiPrice: null },
-  { id: "p3", name: "Lecture Summarizer", creator: "Erik Holm", date: "2026-03-16", requestedPrice: 2_100_000, aiPrice: 1_200_000 },
-  { id: "p4", name: "Dorm Swap", creator: "Chloe Martin", date: "2026-03-15", requestedPrice: 400_000, aiPrice: 375_000 },
-];
-
-const reportedProjectsData = [
-  { id: "r1", name: "Get Rich Quick Course", reason: "Spam", reports: 12 },
-  { id: "r2", name: "Fake Diploma Generator", reason: "Nội dung không phù hợp", reports: 8 },
-  { id: "r3", name: "Random Lorem Ipsum", reason: "Không phải dự án thật", reports: 3 },
-];
-
-const mockStudents = [
-  { id: "u1", name: "Nguyễn Văn An", email: "an.nv@fpt.edu.vn", type: "Premium", status: "verified" },
-  { id: "u2", name: "Trần Thị Bích", email: "bich.tt@fpt.edu.vn", type: "Free", status: "verified" },
-  { id: "u3", name: "Lê Hoàng Dũng", email: "dung.lh@fpt.edu.vn", type: "Free", status: "unverified" },
-  { id: "u4", name: "Phạm Minh Châu", email: "chau.pm@fpt.edu.vn", type: "Premium", status: "verified" },
-  { id: "u5", name: "Võ Thanh Hà", email: "ha.vt@fpt.edu.vn", type: "Free", status: "unverified" },
-  { id: "u6", name: "Đặng Quốc Bảo", email: "bao.dq@fpt.edu.vn", type: "Premium", status: "verified" },
-];
-
-const mockWithdrawals = [
-  { id: "GD-20260301", requester: "Nguyễn Văn An", amount: 2_500_000, bank: "Vietcombank - 1234***789", status: "pending" },
-  { id: "GD-20260302", requester: "Trần Thị Bích", amount: 1_200_000, bank: "MB Bank - 9876***321", status: "completed" },
-  { id: "GD-20260303", requester: "Phạm Minh Châu", amount: 3_800_000, bank: "Techcombank - 5678***012", status: "pending" },
-  { id: "GD-20260304", requester: "Đặng Quốc Bảo", amount: 950_000, bank: "ACB - 1122***445", status: "completed" },
-  { id: "GD-20260305", requester: "Lê Hoàng Dũng", amount: 4_200_000, bank: "BIDV - 3344***667", status: "pending" },
-];
-
-const revenueData = [
-  { month: "T1", revenue: 12_500_000 },
-  { month: "T2", revenue: 18_200_000 },
-  { month: "T3", revenue: 15_800_000 },
-  { month: "T4", revenue: 22_100_000 },
-  { month: "T5", revenue: 19_600_000 },
-  { month: "T6", revenue: 28_400_000 },
-];
-
-const categoryData = [
-  { name: "IT / Phần mềm", value: 75, fill: "hsl(var(--primary))" },
-  { name: "Startup IT", value: 25, fill: "hsl(var(--accent))" },
-];
-
-const revenueChartConfig = {
-  revenue: { label: "Doanh thu", color: "hsl(var(--primary))" },
-};
-
-const categoryChartConfig = {
-  it: { label: "IT / Phần mềm", color: "hsl(var(--primary))" },
-  startup: { label: "Startup IT", color: "hsl(var(--accent))" },
-};
-
-const IT_LABELS: Record<string, string> = {
-  landing: "Landing page",
-  website_full: "Website (full)",
-  web_app: "Web app (CRUD)",
-  mobile_app: "Mobile app",
-  ai_ml: "AI / ML",
-};
-
-
-const COMPLEXITY_LABELS: Record<string, string> = {
-  a: "Simple", b: "Intermediate", c: "Multi-feature", d: "Real-time", e: "AI/Scalable",
-};
-
-const INNOVATION_LABELS: Record<string, string> = {
-  a: "Template", b: "Improve", c: "New Idea", d: "Unique",
-};
+type Section = "pending" | "approved" | "rejected" | "orders";
 
 const Admin = () => {
-  const { t } = useLanguage();
-  const { config, setConfig } = usePricingConfig();
-  const [section, setSection] = useState("overview");
-  const [pending, setPending] = useState(pendingProjectsData);
-  const [reported, setReported] = useState(reportedProjectsData);
-  const [students, setStudents] = useState(mockStudents);
-  const [withdrawals, setWithdrawals] = useState(mockWithdrawals);
+  const navigate = useNavigate();
+  const [section, setSection] = useState<Section>("pending");
+  const [pending, setPending] = useState<Project[]>([]);
+  const [approved, setApproved] = useState<Project[]>([]);
+  const [rejected, setRejected] = useState<Project[]>([]);
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Project | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectId, setRejectId] = useState<string | null>(null);
 
-  const [editConfig, setEditConfig] = useState<PricingConfig>({ ...config, itBase: { ...config.itBase }, designBase: { ...config.designBase }, complexityPts: { ...config.complexityPts }, innovationPts: { ...config.innovationPts }, multiplierBrackets: config.multiplierBrackets.map((b) => ({ ...b })) });
+  useEffect(() => {
+    if (!isAuthenticated() || !isAdmin()) {
+      toast.error("Chỉ Admin mới truy cập được");
+      navigate("/login");
+    }
+  }, [navigate]);
 
-  const sidebarItems = [
-    { label: t("admin.overview"), icon: LayoutDashboard, id: "overview" as const },
-    { label: t("admin.pending"), icon: Clock, id: "pending" as const },
-    { label: t("admin.reported"), icon: AlertTriangle, id: "reported" as const },
-    { label: t("admin.users"), icon: Users, id: "users" as const },
-    { label: t("admin.transactions"), icon: Wallet, id: "transactions" as const },
-    { label: t("admin.pricingConfig"), icon: Settings, id: "pricingConfig" as const },
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [pRes, aRes, rRes, oRes] = await Promise.all([
+        apiFetch("/api/admin/projects/pending"),
+        apiFetch("/api/admin/projects?reviewStatus=APPROVED"),
+        apiFetch("/api/admin/projects?reviewStatus=REJECTED"),
+        apiFetch("/api/admin/orders"),
+      ]);
+
+      if (pRes.status === 403 || aRes.status === 403) {
+        toast.error("Không có quyền Admin");
+        navigate("/");
+        return;
+      }
+
+      if (!aRes.ok) {
+        const err = await aRes.json().catch(() => null);
+        toast.error(err?.message || "Không tải được project đã duyệt");
+      }
+      if (!rRes.ok) {
+        const err = await rRes.json().catch(() => null);
+        toast.error(err?.message || "Không tải được project từ chối");
+      }
+
+      const pBody: ApiResponse<ApiProject[]> = await pRes.json();
+      const aBody: ApiResponse<ApiProject[]> = aRes.ok ? await aRes.json() : { data: [] } as ApiResponse<ApiProject[]>;
+      const rBody: ApiResponse<ApiProject[]> = rRes.ok ? await rRes.json() : { data: [] } as ApiResponse<ApiProject[]>;
+      const oBody: ApiResponse<ApiOrder[]> = oRes.ok ? await oRes.json() : { data: [] } as ApiResponse<ApiOrder[]>;
+
+      setPending((pBody.data ?? []).map(adaptApiProject));
+      setApproved((aBody.data ?? []).map(adaptApiProject));
+      setRejected((rBody.data ?? []).map(adaptApiProject));
+      setOrders(oBody.data ?? []);
+    } catch {
+      toast.error("Không tải được dữ liệu admin");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated() && isAdmin()) load();
+  }, []);
+
+  const openDetail = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/admin/projects/${id}`);
+      const body: ApiResponse<ApiProject> = await res.json();
+      if (!res.ok) throw new Error(body?.message || "Lỗi");
+      setSelected(adaptApiProject(body.data));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/admin/projects/${id}/approve`, { method: "PATCH" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message || "Duyệt thất bại");
+      toast.success("Đã duyệt project");
+      setSelected(null);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    }
+  };
+
+  const openReject = (id: string) => {
+    setRejectId(id);
+    setRejectReason("");
+    setRejectOpen(true);
+  };
+
+  const handleReject = async () => {
+    if (!rejectId || !rejectReason.trim()) {
+      toast.error("Nhập lý do từ chối");
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/admin/projects/${rejectId}/reject`, {
+        method: "PATCH",
+        body: JSON.stringify({ reason: rejectReason.trim() }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message || "Từ chối thất bại");
+      toast.success("Đã từ chối project");
+      setRejectOpen(false);
+      setSelected(null);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    }
+  };
+
+  const completeOrder = async (id: number) => {
+    try {
+      const res = await apiFetch(`/api/admin/orders/${id}/complete`, { method: "PATCH" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message || "Lỗi");
+      toast.success("Đã hoàn tất bàn giao");
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    }
+  };
+
+  const sidebar = [
+    { id: "pending" as const, label: "Chờ duyệt", icon: Clock, count: pending.length },
+    { id: "approved" as const, label: "Đã duyệt", icon: CheckCircle, count: approved.length },
+    { id: "rejected" as const, label: "Từ chối", icon: XCircle, count: rejected.length },
+    { id: "orders" as const, label: "Orders", icon: Wallet, count: orders.length },
   ];
 
-  const handleApprove = (id: string) => {
-    setPending((prev) => prev.filter((p) => p.id !== id));
-    toast.success(t("admin.pending.approve") + "!");
-  };
-
-  const handleReject = (id: string) => {
-    setPending((prev) => prev.filter((p) => p.id !== id));
-    toast.error(t("admin.pending.reject") + "!");
-  };
-
-  const handleForceAI = (id: string) => {
-    setPending((prev) => prev.filter((p) => p.id !== id));
-    toast.success(t("admin.pending.forceAI") + " ✓");
-  };
-
-  const handleKeep = (id: string) => {
-    setReported((prev) => prev.filter((p) => p.id !== id));
-    toast.success(t("admin.reported.keep") + "!");
-  };
-
-  const handleTakeDown = (id: string) => {
-    setReported((prev) => prev.filter((p) => p.id !== id));
-    toast.error(t("admin.reported.takedown") + "!");
-  };
-
-  const handleBan = (id: string) => {
-    setReported((prev) => prev.filter((p) => p.id !== id));
-    toast.error(t("admin.reported.ban") + "!");
-  };
-
-  const handleBanUser = (id: string) => {
-    setStudents((prev) => prev.filter((s) => s.id !== id));
-    toast.error(t("admin.users.banned"));
-  };
-
-  const handleApproveWithdrawal = (id: string) => {
-    setWithdrawals((prev) => prev.map((w) => w.id === id ? { ...w, status: "completed" } : w));
-    toast.success(t("admin.txn.approved"));
-  };
-
-  const handleSaveConfig = () => {
-    setConfig(editConfig);
-    toast.success(t("admin.pricing.saved"));
-  };
-
-  const updateItBase = (key: string, val: number) => setEditConfig((c) => ({ ...c, itBase: { ...c.itBase, [key]: val } }));
-
-  const updateComplexity = (key: string, val: number) => setEditConfig((c) => ({ ...c, complexityPts: { ...c.complexityPts, [key]: val } }));
-  const updateInnovation = (key: string, val: number) => setEditConfig((c) => ({ ...c, innovationPts: { ...c.innovationPts, [key]: val } }));
-  const updateCheckPt = (val: number) => setEditConfig((c) => ({ ...c, checkPt: val }));
-  const updateMultiplier = (idx: number, val: number) => setEditConfig((c) => ({ ...c, multiplierBrackets: c.multiplierBrackets.map((b, i) => i === idx ? { ...b, value: val } : b) }));
-
-  const totalRevenue = revenueData.reduce((s, d) => s + d.revenue, 0);
+  const list =
+    section === "pending" ? pending :
+    section === "approved" ? approved :
+    section === "rejected" ? rejected : [];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-        <div className="flex h-14 items-center justify-between px-6">
-          <Link to="/" className="flex items-center gap-2 font-sans text-lg font-bold">
-            <Skull className="h-5 w-5 text-primary" />
-            <span>{t("admin.title")}</span>
-          </Link>
-          <Link to="/">
-            <Button variant="ghost" size="sm">{t("admin.back")}</Button>
-          </Link>
+    <div className="min-h-screen bg-muted/20">
+      <div className="border-b bg-background">
+        <div className="container flex h-14 items-center justify-between">
+          <div className="flex items-center gap-2 font-display font-bold">
+            <Shield className="h-5 w-5 text-primary" /> Admin
+          </div>
+          <div className="flex gap-2">
+            <Link to="/admin/company-projects/new">
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Đăng project công ty</Button>
+            </Link>
+            <Link to="/"><Button size="sm" variant="outline">Về trang chủ</Button></Link>
+          </div>
         </div>
-      </header>
+      </div>
 
-      <div className="flex">
-        <aside className="hidden w-60 shrink-0 border-r bg-muted/30 md:block">
-          <nav className="sticky top-14 space-y-1 p-4">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setSection(item.id)}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors active:scale-[0.98] ${
-                  section === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </button>
-            ))}
-          </nav>
+      <div className="container py-8 grid gap-6 lg:grid-cols-[220px_1fr]">
+        <aside className="space-y-1">
+          {sidebar.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSection(s.id)}
+              className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-left ${
+                section === s.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              }`}
+            >
+              <s.icon className="h-4 w-4" />
+              <span className="flex-1">{s.label}</span>
+              <Badge variant="secondary" className="text-xs">{s.count}</Badge>
+            </button>
+          ))}
         </aside>
 
-        <main className="flex-1 p-6 lg:p-8">
-          <div className="mb-6 md:hidden">
-            <Tabs value={section} onValueChange={setSection}>
-              <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-                {sidebarItems.map((item) => (
-                  <TabsTrigger key={item.id} value={item.id} className="text-xs">{item.label}</TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {/* ===== OVERVIEW ===== */}
-          {section === "overview" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-sans text-2xl font-bold">{t("admin.overview.title")}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("admin.overview.sub")}</p>
-              </div>
-
-              {/* Summary Cards */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <button onClick={() => setSection("pending")} className="rounded-xl border bg-card p-5 text-left transition-all hover:shadow-md active:scale-[0.98]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Clock className="h-5 w-5 text-primary" />
-                    </div>
-                    <Badge variant="outline" className="text-primary border-primary/30 text-xs">
-                      <ArrowUpRight className="h-3 w-3 mr-0.5" />+8%
-                    </Badge>
-                  </div>
-                  <p className="mt-3 text-2xl font-bold tabular-nums">{pending.length}</p>
-                  <p className="text-xs text-muted-foreground">{t("admin.pending")}</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{t("admin.overview.vsLastMonth")}</p>
-                </button>
-
-                <button onClick={() => setSection("reported")} className="rounded-xl border bg-card p-5 text-left transition-all hover:shadow-md active:scale-[0.98]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                    </div>
-                    <Badge variant="outline" className="text-destructive border-destructive/30 text-xs">
-                      <ArrowUpRight className="h-3 w-3 mr-0.5" />-5%
-                    </Badge>
-                  </div>
-                  <p className="mt-3 text-2xl font-bold tabular-nums">{reported.length}</p>
-                  <p className="text-xs text-muted-foreground">{t("admin.reported")}</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{t("admin.overview.vsLastMonth")}</p>
-                </button>
-
-                <div className="rounded-xl border bg-card p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                      <TrendingUp className="h-5 w-5 text-accent" />
-                    </div>
-                    <Badge variant="outline" className="text-accent border-accent/30 text-xs">
-                      <ArrowUpRight className="h-3 w-3 mr-0.5" />+12%
-                    </Badge>
-                  </div>
-                  <p className="mt-3 text-2xl font-bold tabular-nums">{totalRevenue.toLocaleString("vi-VN")}₫</p>
-                  <p className="text-xs text-muted-foreground">{t("admin.overview.totalRevenue")}</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{t("admin.overview.vsLastMonth")}</p>
-                </div>
-              </div>
-
-              {/* Charts */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                <div className="rounded-xl border bg-card p-5">
-                  <h3 className="font-sans font-semibold mb-4">{t("admin.overview.revenueChart")}</h3>
-                  <ChartContainer config={revenueChartConfig} className="h-[250px] w-full">
-                    <BarChart data={revenueData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                      <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                      <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="revenue" radius={[6, 6, 0, 0]} fill="hsl(var(--primary))" />
-                    </BarChart>
-                  </ChartContainer>
-                </div>
-
-                <div className="rounded-xl border bg-card p-5">
-                  <h3 className="font-sans font-semibold mb-4">{t("admin.overview.categoryChart")}</h3>
-                  <ChartContainer config={categoryChartConfig} className="h-[250px] w-full">
-                    <PieChart>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Pie
-                        data={categoryData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        strokeWidth={2}
-                        stroke="hsl(var(--background))"
-                      >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={index} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ChartContainer>
-                  <div className="flex justify-center gap-6 mt-2">
-                    {categoryData.map((c) => (
-                      <div key={c.name} className="flex items-center gap-2 text-sm">
-                        <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: c.fill }} />
-                        <span className="text-muted-foreground">{c.name}</span>
-                        <span className="font-semibold">{c.value}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+        <main>
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-          )}
-
-          {/* ===== PENDING ===== */}
-          {section === "pending" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-sans text-2xl font-bold">{t("admin.pending.title")}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("admin.pending.sub")}</p>
-              </div>
-              {pending.length === 0 ? (
-                <div className="rounded-xl border bg-card p-12 text-center">
-                  <CheckCircle className="mx-auto h-10 w-10 text-accent mb-3" />
-                  <p className="font-semibold">{t("admin.pending.empty")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{t("admin.pending.emptySub")}</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border bg-card overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("admin.pending.name")}</TableHead>
-                        <TableHead>{t("admin.pending.creator")}</TableHead>
-                        <TableHead>{t("admin.pending.date")}</TableHead>
-                        <TableHead>{t("admin.pending.requested")}</TableHead>
-                        <TableHead>{t("admin.pending.aiPrice")}</TableHead>
-                        <TableHead>{t("admin.pending.variance")}</TableHead>
-                        <TableHead className="text-right">{t("admin.pending.action")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pending.map((p) => {
-                        const variance = p.requestedPrice && p.aiPrice ? Math.round(((p.requestedPrice - p.aiPrice) / p.aiPrice) * 100) : null;
-                        const isOver30 = variance !== null && variance > 30;
-                        return (
-                          <TableRow key={p.id} className={isOver30 ? "bg-primary/5" : ""}>
-                            <TableCell className="font-medium">{p.name}</TableCell>
-                            <TableCell>{p.creator}</TableCell>
-                            <TableCell className="tabular-nums">{p.date}</TableCell>
-                            <TableCell className="tabular-nums">
-                              {p.requestedPrice ? `${p.requestedPrice.toLocaleString("vi-VN")}₫` : "—"}
-                            </TableCell>
-                            <TableCell className="tabular-nums">
-                              {p.aiPrice ? `${p.aiPrice.toLocaleString("vi-VN")}₫` : "—"}
-                            </TableCell>
-                            <TableCell>
-                              {variance !== null ? (
-                                <Badge variant="outline" className={isOver30 ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-accent/10 text-accent border-accent/30"}>
-                                  {variance > 0 ? "+" : ""}{variance}%
-                                </Badge>
-                              ) : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2 flex-wrap">
-                                {isOver30 ? (
-                                  <>
-                                    <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => handleApprove(p.id)}>
-                                      {t("admin.pending.approvePrice")}
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10" onClick={() => handleForceAI(p.id)}>
-                                      {t("admin.pending.forceAI")}
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => handleApprove(p.id)}>
-                                      <CheckCircle className="mr-1 h-3.5 w-3.5" /> {t("admin.pending.approve")}
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => handleReject(p.id)}>
-                                      <XCircle className="mr-1 h-3.5 w-3.5" /> {t("admin.pending.reject")}
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ===== REPORTED ===== */}
-          {section === "reported" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-sans text-2xl font-bold">{t("admin.reported.title")}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("admin.reported.sub")}</p>
-              </div>
-              {reported.length === 0 ? (
-                <div className="rounded-xl border bg-card p-12 text-center">
-                  <Shield className="mx-auto h-10 w-10 text-accent mb-3" />
-                  <p className="font-semibold">{t("admin.reported.empty")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{t("admin.reported.emptySub")}</p>
-                </div>
-              ) : (
-                <div className="rounded-xl border bg-card overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("admin.pending.name")}</TableHead>
-                        <TableHead>{t("admin.reported.reason")}</TableHead>
-                        <TableHead>{t("admin.reported.reports")}</TableHead>
-                        <TableHead className="text-right">{t("admin.pending.action")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reported.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.name}</TableCell>
-                          <TableCell>{p.reason}</TableCell>
-                          <TableCell className="tabular-nums">{p.reports}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => handleKeep(p.id)}>
-                                <Eye className="mr-1 h-3.5 w-3.5" /> {t("admin.reported.keep")}
-                              </Button>
-                              <Button size="sm" variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => handleTakeDown(p.id)}>
-                                <XCircle className="mr-1 h-3.5 w-3.5" /> {t("admin.reported.takedown")}
-                              </Button>
-                              <Button size="sm" variant="outline" className="border-destructive/50 bg-destructive/5 text-destructive hover:bg-destructive/15" onClick={() => handleBan(p.id)}>
-                                <Ban className="mr-1 h-3.5 w-3.5" /> {t("admin.reported.ban")}
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ===== USER MANAGEMENT ===== */}
-          {section === "users" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-sans text-2xl font-bold">{t("admin.users.title")}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("admin.users.sub")}</p>
-              </div>
-              <div className="rounded-xl border bg-card overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("admin.users.name")}</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>{t("admin.users.accountType")}</TableHead>
-                      <TableHead>{t("admin.users.status")}</TableHead>
-                      <TableHead className="text-right">{t("admin.pending.action")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {students.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium">{s.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{s.email}</TableCell>
-                        <TableCell>
-                          <Badge variant={s.type === "Premium" ? "default" : "secondary"}>
-                            {s.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={s.status === "verified" ? "bg-accent/10 text-accent border-accent/30" : "bg-destructive/10 text-destructive border-destructive/30"}>
-                            {s.status === "verified" ? t("admin.users.verified") : t("admin.users.unverified")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => handleBanUser(s.id)}>
-                            <Ban className="mr-1 h-3.5 w-3.5" /> {t("admin.users.ban")}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-
-          {/* ===== TRANSACTION MANAGEMENT ===== */}
-          {section === "transactions" && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="font-sans text-2xl font-bold">{t("admin.txn.title")}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("admin.txn.sub")}</p>
-              </div>
-              <div className="rounded-xl border bg-card overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("admin.txn.id")}</TableHead>
-                      <TableHead>{t("admin.txn.requester")}</TableHead>
-                      <TableHead>{t("admin.txn.amount")}</TableHead>
-                      <TableHead>{t("admin.txn.bank")}</TableHead>
-                      <TableHead>{t("admin.txn.status")}</TableHead>
-                      <TableHead className="text-right">{t("admin.pending.action")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {withdrawals.map((w) => (
-                      <TableRow key={w.id}>
-                        <TableCell className="font-mono text-xs">{w.id}</TableCell>
-                        <TableCell className="font-medium">{w.requester}</TableCell>
-                        <TableCell className="tabular-nums font-semibold">{w.amount.toLocaleString("vi-VN")}₫</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{w.bank}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={w.status === "completed" ? "bg-accent/10 text-accent border-accent/30" : "bg-primary/10 text-primary border-primary/30"}>
-                            {w.status === "completed" ? t("admin.txn.completed") : t("admin.txn.pending")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {w.status === "pending" ? (
-                            <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => handleApproveWithdrawal(w.id)}>
-                              <CheckCircle className="mr-1 h-3.5 w-3.5" /> {t("admin.txn.approve")}
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">{t("admin.txn.done")}</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-
-          {/* ===== PRICING CONFIG ===== */}
-          {section === "pricingConfig" && (
-            <div className="space-y-8">
-              <div>
-                <h1 className="font-sans text-2xl font-bold">{t("admin.pricing.title")}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t("admin.pricing.sub")}</p>
-              </div>
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                <div className="rounded-xl border bg-card p-5 space-y-4">
-                  <h3 className="font-sans font-semibold">{t("admin.pricing.itPrices")}</h3>
-                  {Object.entries(editConfig.itBase).map(([key, val]) => (
-                    <div key={key} className="flex items-center gap-3">
-                      <Label className="w-36 text-sm shrink-0">{IT_LABELS[key]}</Label>
-                      <Input type="number" value={val} onChange={(e) => updateItBase(key, Number(e.target.value))} className="tabular-nums" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-xl border bg-card p-5 space-y-4">
-                <h3 className="font-sans font-semibold">{t("admin.pricing.scoringWeights")}</h3>
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold">{t("admin.pricing.complexity")}</Label>
-                    {Object.entries(editConfig.complexityPts).map(([key, val]) => (
-                      <div key={key} className="flex items-center gap-3">
-                        <Label className="w-28 text-sm shrink-0">{COMPLEXITY_LABELS[key]}</Label>
-                        <Input type="number" value={val} onChange={(e) => updateComplexity(key, Number(e.target.value))} className="tabular-nums w-24" />
-                      </div>
-                    ))}
+          ) : section === "orders" ? (
+            <div className="space-y-3">
+              <h1 className="font-display text-2xl font-bold mb-4">Orders</h1>
+              {orders.length === 0 ? (
+                <p className="text-muted-foreground">Chưa có order</p>
+              ) : orders.map((o) => (
+                <div key={o.id} className="rounded-xl border bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">#{o.id} · {o.project?.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Buyer: {o.buyer?.fullName} · {o.amount?.toLocaleString("vi-VN")}₫ · {o.status}
+                    </p>
                   </div>
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold">{t("admin.pricing.innovation")}</Label>
-                    {Object.entries(editConfig.innovationPts).map(([key, val]) => (
-                      <div key={key} className="flex items-center gap-3">
-                        <Label className="w-28 text-sm shrink-0">{INNOVATION_LABELS[key]}</Label>
-                        <Input type="number" value={val} onChange={(e) => updateInnovation(key, Number(e.target.value))} className="tabular-nums w-24" />
-                      </div>
-                    ))}
+                  {(o.status === "PAID" || o.status === "PROCESSING_HANDOVER") && (
+                    <Button size="sm" onClick={() => completeOrder(o.id)}>Hoàn tất bàn giao</Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <h1 className="font-display text-2xl font-bold mb-4">
+                {sidebar.find((s) => s.id === section)?.label}
+              </h1>
+              {list.length === 0 ? (
+                <p className="text-muted-foreground">Không có project</p>
+              ) : list.map((p) => (
+                <div key={p.id} className="rounded-xl border bg-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{p.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {p.creator.name} · {p.completionPercent ?? p.progress}% ·{" "}
+                      {p.price != null ? `${p.price.toLocaleString("vi-VN")}₫` : "—"}
+                    </p>
+                    {p.rejectionReason && (
+                      <p className="text-sm text-destructive">Lý do: {p.rejectionReason}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => openDetail(p.id)}>Chi tiết</Button>
+                    {section === "pending" && (
+                      <>
+                        <Button size="sm" onClick={() => handleApprove(p.id)}>Duyệt</Button>
+                        <Button size="sm" variant="destructive" onClick={() => openReject(p.id)}>Từ chối</Button>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 pt-2">
-                  <Label className="text-sm shrink-0">{t("admin.pricing.deliverables")} / {t("admin.pricing.quality")} / {t("admin.pricing.market")}</Label>
-                  <Input type="number" value={editConfig.checkPt} onChange={(e) => updateCheckPt(Number(e.target.value))} className="tabular-nums w-24" />
-                  <span className="text-xs text-muted-foreground">pts</span>
-                </div>
-              </div>
-
-              <div className="rounded-xl border bg-card p-5 space-y-4">
-                <h3 className="font-sans font-semibold">{t("admin.pricing.multipliers")}</h3>
-                <div className="space-y-3">
-                  {editConfig.multiplierBrackets.map((b, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <Label className="w-32 text-sm shrink-0 tabular-nums">{t("admin.pricing.scoreRange")}: {b.min}–{b.max}</Label>
-                      <Input type="number" step="0.25" value={b.value} onChange={(e) => updateMultiplier(i, Number(e.target.value))} className="tabular-nums w-24" />
-                      <span className="text-sm text-muted-foreground">×</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Button onClick={handleSaveConfig} className="gap-2">
-                <Save className="h-4 w-4" /> {t("admin.pricing.save")}
-              </Button>
+              ))}
             </div>
           )}
         </main>
       </div>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selected.title}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                {selected.imageUrls?.[0] && (
+                  <img src={selected.imageUrls[0]} alt="" className="w-full rounded-lg max-h-48 object-cover" />
+                )}
+                <p>{selected.description}</p>
+                <p><strong>% hoàn thiện:</strong> {selected.completionPercent ?? selected.progress}%</p>
+                <p><strong>Đã làm:</strong> {selected.completedParts || "—"}</p>
+                <p><strong>Còn thiếu:</strong> {selected.missingParts || "—"}</p>
+                <p><strong>Giá mong muốn:</strong> {selected.price?.toLocaleString("vi-VN") ?? "—"}₫</p>
+                {(selected.estimatedPriceLow || selected.estimatedPriceSuggested) && (
+                  <p>
+                    <strong>Giá gợi ý:</strong>{" "}
+                    {selected.estimatedPriceLow?.toLocaleString("vi-VN")} –{" "}
+                    {selected.estimatedPriceSuggested?.toLocaleString("vi-VN")} –{" "}
+                    {selected.estimatedPriceHigh?.toLocaleString("vi-VN")}₫
+                  </p>
+                )}
+                {selected.githubUrl && (
+                  <a href={selected.githubUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline">
+                    GitHub <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+              {selected.reviewStatus === "PENDING_REVIEW" && (
+                <DialogFooter className="gap-2">
+                  <Button variant="destructive" onClick={() => openReject(selected.id)}>Từ chối</Button>
+                  <Button onClick={() => handleApprove(selected.id)}>Duyệt</Button>
+                </DialogFooter>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Lý do từ chối</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Rejection reason</Label>
+            <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>Huỷ</Button>
+            <Button variant="destructive" onClick={handleReject}>Xác nhận từ chối</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

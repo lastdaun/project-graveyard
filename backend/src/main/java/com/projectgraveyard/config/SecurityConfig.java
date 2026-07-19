@@ -44,6 +44,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/projects/my").authenticated()
                 // Public GET endpoints for projects
                 .requestMatchers(HttpMethod.GET, "/api/projects/**").permitAll()
+                // Public user profile by id (not /me)
+                .requestMatchers(HttpMethod.GET, "/api/users/{id:[0-9]+}").permitAll()
+                // Admin & orders require auth (role checked in controllers)
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/orders/**").authenticated()
                 // Swagger UI & API docs
                 .requestMatchers(
                     "/v3/api-docs/**",

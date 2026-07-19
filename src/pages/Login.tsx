@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const Login = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isSignUp = searchParams.get("mode") === "signup";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -15,13 +16,18 @@ const Login = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
 
+  const setSignUpMode = (signup: boolean) => {
+    if (signup) setSearchParams({ mode: "signup" });
+    else setSearchParams({});
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       const endpoint = isSignUp ? "/api/auth/register" : "/api/auth/login";
-      const payload = isSignUp 
+      const payload = isSignUp
         ? { email, password, fullName }
         : { email, password };
 
@@ -39,16 +45,16 @@ const Login = () => {
         throw new Error(data.message || "Đăng ký/đăng nhập thất bại");
       }
 
-      // Save token and user details to localStorage
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
 
       toast.success(isSignUp ? t("login.create") + "!" : t("login.welcome") + "!");
-      
-      // Redirect to profile page
-      navigate("/profile");
-    } catch (error: any) {
-      toast.error(error.message || "Đã xảy ra lỗi khi kết nối với máy chủ");
+
+      const role = data.data.user?.role;
+      navigate(role === "ADMIN" ? "/admin" : "/profile?tab=listings");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Đã xảy ra lỗi khi kết nối với máy chủ";
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -75,38 +81,38 @@ const Login = () => {
             {isSignUp && (
               <div className="space-y-2">
                 <Label htmlFor="name">{t("login.name")}</Label>
-                <Input 
-                  id="name" 
-                  placeholder="Nguyễn Văn A" 
+                <Input
+                  id="name"
+                  placeholder="Nguyễn Văn A"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   disabled={isLoading}
-                  required 
+                  required
                 />
               </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">{t("login.email")}</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="ban@university.edu" 
+              <Input
+                id="email"
+                type="email"
+                placeholder="ban@university.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                required 
+                required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">{t("login.password")}</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder="••••••••" 
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                required 
+                required
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -116,8 +122,9 @@ const Login = () => {
 
           <div className="mt-4 text-center text-sm text-muted-foreground">
             {isSignUp ? t("login.has_account") : t("login.no_account")}{" "}
-            <button 
-              onClick={() => setIsSignUp(!isSignUp)} 
+            <button
+              type="button"
+              onClick={() => setSignUpMode(!isSignUp)}
               className="font-medium text-primary hover:underline"
               disabled={isLoading}
             >

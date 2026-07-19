@@ -1,5 +1,9 @@
 export type CollaborationMode = "Free Collaboration" | "Profit Sharing" | "Sell Usage Rights" | "Find Co-founder";
 
+export type ListingType = "COMPANY_PROJECT" | "USER_INCOMPLETE_PROJECT";
+export type CompletionStatus = "INCOMPLETE" | "COMPLETED";
+export type ReviewStatus = "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+
 export const collaborationModeLabels: Record<CollaborationMode, string> = {
   "Free Collaboration": "Cộng tác miễn phí",
   "Profit Sharing": "Chia sẻ lợi nhuận",
@@ -23,10 +27,30 @@ export interface Project {
   currentMembers: number;
   progress: number;
   imageUrl?: string;
+  imageUrls?: string[];
   createdAt: string;
   collaborationMode: CollaborationMode;
   price?: number;
   equitySplit?: number;
+  listingType?: ListingType;
+  completionStatus?: CompletionStatus;
+  completionPercent?: number;
+  completedParts?: string;
+  missingParts?: string;
+  currentStage?: string;
+  demoUrl?: string;
+  reviewStatus?: ReviewStatus;
+  rejectionReason?: string;
+  approved?: boolean;
+  estimatedPriceLow?: number;
+  estimatedPriceSuggested?: number;
+  estimatedPriceHigh?: number;
+  valuationNote?: string;
+  companyName?: string;
+  companyWebsite?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  githubUrl?: string;
 }
 
 export const collaborationBadge: Record<CollaborationMode, { label: string; className: string }> = {
