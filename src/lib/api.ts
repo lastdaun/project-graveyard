@@ -21,6 +21,20 @@ export function isAuthenticated(): boolean {
   return !!getToken();
 }
 
+export function getStoredUser(): { id: number; email: string; fullName: string; role: string } | null {
+  const raw = localStorage.getItem("user");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function isAdmin(): boolean {
+  return getStoredUser()?.role === "ADMIN";
+}
+
 const CATEGORY_LABEL: Record<string, Project["category"]> = {
   IT: "IT",
   STARTUP: "Startup",
@@ -63,11 +77,31 @@ export function adaptApiProject(p: ApiProject): Project {
     },
     teamSize: p.teamSize,
     currentMembers: p.currentMembers,
-    progress: p.progress,
-    imageUrl: p.imageUrl,
+    progress: p.completionPercent ?? p.progress,
+    imageUrl: p.imageUrl || p.imageUrls?.[0],
+    imageUrls: p.imageUrls,
     createdAt: p.createdAt ?? "",
-    collaborationMode: COLLAB_LABEL[p.collaborationMode] ?? ("Free Collaboration" as CollaborationMode),
+    collaborationMode: COLLAB_LABEL[p.collaborationMode ?? "SELL_USAGE_RIGHTS"] ?? "Sell Usage Rights",
     price: p.price,
     equitySplit: p.equitySplit,
+    listingType: p.listingType,
+    completionStatus: p.completionStatus,
+    completionPercent: p.completionPercent,
+    completedParts: p.completedParts,
+    missingParts: p.missingParts,
+    currentStage: p.currentStage,
+    demoUrl: p.demoUrl,
+    reviewStatus: p.reviewStatus,
+    rejectionReason: p.rejectionReason,
+    approved: p.approved,
+    estimatedPriceLow: p.estimatedPriceLow,
+    estimatedPriceSuggested: p.estimatedPriceSuggested,
+    estimatedPriceHigh: p.estimatedPriceHigh,
+    valuationNote: p.valuationNote,
+    companyName: p.companyName,
+    companyWebsite: p.companyWebsite,
+    companyEmail: p.companyEmail,
+    companyPhone: p.companyPhone,
+    githubUrl: p.githubUrl,
   };
 }

@@ -2,10 +2,11 @@ package com.projectgraveyard.controller;
 
 import com.projectgraveyard.dto.request.ProjectRequest;
 import com.projectgraveyard.dto.response.ApiResponse;
+import com.projectgraveyard.dto.response.MyProjectResponse;
 import com.projectgraveyard.dto.response.ProjectMemberResponse;
 import com.projectgraveyard.dto.response.ProjectResponse;
 import com.projectgraveyard.entity.User;
-import com.projectgraveyard.enums.CollaborationMode;
+import com.projectgraveyard.enums.ListingType;
 import com.projectgraveyard.enums.ProjectCategory;
 import com.projectgraveyard.enums.ProjectStatus;
 import com.projectgraveyard.service.ProjectService;
@@ -34,21 +35,21 @@ public class ProjectController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) ProjectCategory category,
             @RequestParam(required = false) ProjectStatus status,
-            @RequestParam(required = false) CollaborationMode collaborationMode,
+            @RequestParam(required = false) ListingType listingType,
             @RequestParam(required = false) Long creatorId,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<ProjectResponse> response = projectService.getProjects(
-                search, category, status, collaborationMode, creatorId, pageable
+                search, category, status, listingType, creatorId, pageable
         );
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/my")
-    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getMyProjects(
+    public ResponseEntity<ApiResponse<List<MyProjectResponse>>> getMyProjects(
             @AuthenticationPrincipal User currentUser
     ) {
-        List<ProjectResponse> response = projectService.getMyProjects(currentUser);
+        List<MyProjectResponse> response = projectService.getMyProjects(currentUser);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

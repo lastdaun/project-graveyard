@@ -1,6 +1,6 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Users, Mail, Calendar, Flag, Handshake, DollarSign, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, Flag, DollarSign, Loader2, Building2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -8,26 +8,21 @@ import {
 } from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { collaborationBadge, getCollabLabel } from "@/data/mockData";
 import type { Project } from "@/data/mockData";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { ApiProject, ApiResponse } from "@/types/api";
-import { adaptApiProject } from "@/lib/api";
-
-const statusColor: Record<string, string> = {
-  "Ý tưởng": "tag-warning",
-  "Nguyên mẫu": "tag-primary",
-  "Đang phát triển": "tag-accent",
-};
+import { adaptApiProject, apiFetch, isAuthenticated } from "@/lib/api";
 
 const ProjectDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [buying, setBuying] = useState(false);
 
   const reportReasons = [t("project.report.r1"), t("project.report.r2"), t("project.report.r3")];
 
@@ -50,6 +45,36 @@ const ProjectDetails = () => {
   const handleReport = (reason: string) => {
     toast.success(`${t("project.report")}: "${reason}"`);
     setReportOpen(false);
+  };
+
+  const handleBuy = async () => {
+    if (!isAuthenticated()) {
+      toast.error("Đăng nhập để mua project");
+      navigate("/login");
+      return;
+    }
+    if (!project) return;
+    setBuying(true);
+    try {
+      const createRes = await apiFetch("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({ projectId: Number(project.id) }),
+      });
+      const createBody = await createRes.json();
+      if (!createRes.ok) throw new Error(createBody?.message || "Tạo đơn thất bại");
+
+      const orderId = createBody.data.id;
+      const payRes = await apiFetch(`/api/orders/${orderId}/mock-pay`, { method: "PATCH" });
+      const payBody = await payRes.json();
+      if (!payRes.ok) throw new Error(payBody?.message || "Thanh toán thất bại");
+
+      toast.success("Mua thành công! Xem tại Đơn mua.");
+      navigate("/profile?tab=purchases");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi mua hàng");
+    } finally {
+      setBuying(false);
+    }
   };
 
   if (isLoading) {
@@ -75,9 +100,8 @@ const ProjectDetails = () => {
     );
   }
 
-  const badge = collaborationBadge[project.collaborationMode];
-  const collabLabel = getCollabLabel(project);
-  const isPaid = project.collaborationMode === "Sell Usage Rights";
+  const isCompany = project.listingType === "COMPANY_PROJECT";
+  const isIncomplete = project.listingType === "USER_INCOMPLETE_PROJECT" || project.completionStatus === "INCOMPLETE";
 
   return (
     <div className="min-h-screen">
@@ -88,13 +112,13 @@ const ProjectDetails = () => {
         </Link>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Main */}
           <div className="lg:col-span-2 space-y-6">
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className={`tag ${statusColor[project.status] ?? "tag-muted"}`}>{project.status}</span>
+                <span className="tag tag-primary">
+                  {isCompany ? "Sản phẩm công ty" : "Project cộng đồng"}
+                </span>
                 <span className="tag tag-muted">{project.category}</span>
-                <span className={`tag ${badge?.className ?? "tag-muted"}`}>{collabLabel}</span>
                 <Dialog open={reportOpen} onOpenChange={setReportOpen}>
                   <DialogTrigger asChild>
                     <button className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
@@ -111,7 +135,7 @@ const ProjectDetails = () => {
                         <button
                           key={reason}
                           onClick={() => handleReport(reason)}
-                          className="w-full rounded-lg border px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-destructive/5 hover:border-destructive/30 hover:text-destructive active:scale-[0.98]"
+                          className="w-full rounded-lg border px-4 py-3 text-left text-sm font-medium hover:bg-destructive/5"
                         >
                           {reason}
                         </button>
@@ -124,22 +148,68 @@ const ProjectDetails = () => {
             </div>
 
             <div>
-              <h2 className="mb-2 font-semibold">{t("project.description")}</h2>
-              <p className="text-muted-foreground leading-relaxed">{project.description}</p>
+              <h2 className="mb-2 font-semibold">Mô tả</h2>
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{project.description}</p>
             </div>
 
-            <div>
-              <h2 className="mb-2 font-semibold">{t("project.progress")}</h2>
-              <div className="mb-1 flex justify-between text-sm text-muted-foreground">
-                <span>{project.status}</span>
-                <span>{project.progress}%</span>
+            {isIncomplete && (
+              <>
+                <div>
+                  <h2 className="mb-2 font-semibold">% hoàn thiện</h2>
+                  <div className="mb-1 flex justify-between text-sm text-muted-foreground">
+                    <span>{project.currentStage || project.status}</span>
+                    <span>{project.completionPercent ?? project.progress}%</span>
+                  </div>
+                  <Progress value={project.completionPercent ?? project.progress} className="h-2" />
+                </div>
+                {project.completedParts && (
+                  <div>
+                    <h2 className="mb-2 font-semibold">Phần đã làm</h2>
+                    <p className="text-muted-foreground whitespace-pre-wrap">{project.completedParts}</p>
+                  </div>
+                )}
+                {project.missingParts && (
+                  <div>
+                    <h2 className="mb-2 font-semibold">Phần còn thiếu</h2>
+                    <p className="text-muted-foreground whitespace-pre-wrap">{project.missingParts}</p>
+                  </div>
+                )}
+                {(project.estimatedPriceLow || project.estimatedPriceSuggested) && (
+                  <div className="rounded-xl border bg-muted/30 p-4">
+                    <h2 className="mb-2 font-semibold">Giá gợi ý</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {project.estimatedPriceLow?.toLocaleString("vi-VN")} –{" "}
+                      {project.estimatedPriceSuggested?.toLocaleString("vi-VN")} –{" "}
+                      {project.estimatedPriceHigh?.toLocaleString("vi-VN")}₫
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {isCompany && project.companyName && (
+              <div className="rounded-xl border p-4 space-y-2">
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Building2 className="h-4 w-4" /> Thông tin công ty
+                </h2>
+                <p>{project.companyName}</p>
+                {project.companyWebsite && (
+                  <a href={project.companyWebsite} target="_blank" rel="noreferrer" className="text-primary text-sm inline-flex items-center gap-1">
+                    Website <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
-              <Progress value={project.progress} className="h-2" />
-            </div>
+            )}
+
+            {project.demoUrl && (
+              <a href={project.demoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline text-sm">
+                Xem demo <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
 
             {project.techStack && project.techStack.length > 0 && (
               <div>
-                <h2 className="mb-3 font-semibold">{t("project.techstack")}</h2>
+                <h2 className="mb-3 font-semibold">Tech stack</h2>
                 <div className="flex flex-wrap gap-2">
                   {project.techStack.map((tech) => (
                     <span key={tech} className="rounded-lg border bg-card px-3 py-1.5 text-sm font-medium font-mono">{tech}</span>
@@ -147,83 +217,23 @@ const ProjectDetails = () => {
                 </div>
               </div>
             )}
-
-            {project.skillsNeeded && project.skillsNeeded.length > 0 && (
-              <div>
-                <h2 className="mb-3 font-semibold">{t("project.skills")}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {project.skillsNeeded.map((s) => (
-                    <span key={s} className="tag tag-primary">{s}</span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-4">
             <div className="rounded-xl border bg-card p-6 space-y-4">
-              <div className="flex items-center gap-2 font-semibold">
-                <Handshake className="h-5 w-5 text-primary" />
-                {t("project.collab.title")}
-              </div>
-              <div className="rounded-lg bg-muted/60 p-4 space-y-2">
-                <span className={`tag ${badge?.className ?? "tag-muted"} text-sm`}>{collabLabel}</span>
-                {isPaid && (
-                  <div className="flex items-center gap-1.5 text-2xl font-bold text-foreground">
-                    {(project.price ?? 0).toLocaleString("vi-VN")}₫
-                    <span className="text-sm font-normal text-muted-foreground">{t("project.collab.onetime")}</span>
-                  </div>
-                )}
-                {project.collaborationMode === "Profit Sharing" && (
-                  <p className="text-sm text-muted-foreground">
-                    {t("project.profitsplit.you")} {project.equitySplit}% · {t("project.profitsplit.them")} {100 - (project.equitySplit ?? 50)}% {t("project.profitsplit.profit")}
-                  </p>
-                )}
-                {project.collaborationMode === "Find Co-founder" && (
-                  <p className="text-sm text-muted-foreground">{t("project.collab.equity")}</p>
-                )}
-                {project.collaborationMode === "Free Collaboration" && (
-                  <p className="text-sm text-muted-foreground">{t("project.collab.free")}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-xl border bg-card p-6 space-y-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
-                  {project.creator.avatar}
-                </div>
-                <div>
-                  <p className="font-semibold">{project.creator.name}</p>
-                  <p className="text-xs text-muted-foreground">{t("project.creator")}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Users className="h-4 w-4" />
-                <span>{project.currentMembers} / {project.teamSize} {t("project.members")}</span>
-              </div>
-
+              <p className="text-sm text-muted-foreground">Giá bán</p>
+              <p className="text-3xl font-bold">
+                {(project.price ?? 0).toLocaleString("vi-VN")}₫
+              </p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>{t("project.postedon")} {project.createdAt ? new Date(project.createdAt).toLocaleDateString("vi-VN") : ""}</span>
+                <span>{project.createdAt ? new Date(project.createdAt).toLocaleDateString("vi-VN") : ""}</span>
               </div>
-
-              <div className="space-y-2">
-                {isPaid ? (
-                  <Button className="w-full" onClick={() => toast.success("✓")}>
-                    <DollarSign className="mr-2 h-4 w-4" /> {t("project.buy")} — {(project.price ?? 0).toLocaleString("vi-VN")}₫
-                  </Button>
-                ) : (
-                  <Button className="w-full" onClick={() => toast.success("✓")}>
-                    <Users className="mr-2 h-4 w-4" /> {t("project.join")}
-                  </Button>
-                )}
-                <Button variant="outline" className="w-full" onClick={() => toast.success("✓")}>
-                  <Mail className="mr-2 h-4 w-4" /> {t("project.contact")}
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">Người đăng: {project.creator.name}</p>
+              <Button className="w-full" disabled={buying || !project.price} onClick={handleBuy}>
+                <DollarSign className="mr-2 h-4 w-4" />
+                {buying ? "Đang xử lý..." : `Mua project — ${(project.price ?? 0).toLocaleString("vi-VN")}₫`}
+              </Button>
             </div>
           </div>
         </div>

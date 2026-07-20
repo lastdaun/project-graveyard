@@ -4,6 +4,7 @@ import com.projectgraveyard.enums.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -20,7 +21,6 @@ public class ProjectRequest {
     @NotNull(message = "Category is required")
     private ProjectCategory category;
 
-    @NotNull(message = "Status is required")
     private ProjectStatus status;
 
     private List<String> skillsNeeded;
@@ -38,11 +38,11 @@ public class ProjectRequest {
 
     private CollaborationMode collaborationMode;
 
-    private Long price; // VND
+    private Long price;
 
     @Min(value = 0, message = "Equity split must be at least 0%")
     @Max(value = 100, message = "Equity split cannot exceed 100%")
-    private Integer equitySplit; // %
+    private Integer equitySplit;
 
     private SellerType sellerType;
 
@@ -62,6 +62,7 @@ public class ProjectRequest {
 
     private String githubUrl;
 
+    @NotEmpty(message = "At least one project image is required")
     private List<String> imageUrls;
 
     private LicenseType licenseType;
@@ -69,4 +70,11 @@ public class ProjectRequest {
     private String demoUrl;
 
     private Integer supportDays;
+
+    private Long estimatedPriceLow;
+    private Long estimatedPriceSuggested;
+    private Long estimatedPriceHigh;
+    private Integer valuationScore;
+    private String valuationConfidence;
+    private String valuationNote;
 }
