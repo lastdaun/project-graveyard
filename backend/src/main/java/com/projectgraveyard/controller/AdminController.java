@@ -4,12 +4,14 @@ import com.projectgraveyard.dto.request.CompanyProjectRequest;
 import com.projectgraveyard.dto.request.RejectRequest;
 import com.projectgraveyard.dto.response.AdminProjectResponse;
 import com.projectgraveyard.dto.response.ApiResponse;
+import com.projectgraveyard.dto.response.OrderResponse;
 import com.projectgraveyard.dto.response.ProjectResponse;
 import com.projectgraveyard.entity.User;
 import com.projectgraveyard.enums.ErrorCode;
 import com.projectgraveyard.enums.ReviewStatus;
 import com.projectgraveyard.enums.Role;
 import com.projectgraveyard.exception.AppException;
+import com.projectgraveyard.service.OrderService;
 import com.projectgraveyard.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.List;
 public class AdminController {
 
     private final ProjectService projectService;
+    private final OrderService orderService;
 
     @GetMapping("/projects/pending")
     public ResponseEntity<ApiResponse<List<AdminProjectResponse>>> getPendingProjects(
@@ -84,6 +87,26 @@ public class AdminController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Company project created"));
+    }
+
+    @GetMapping("/orders")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrders(
+            @AuthenticationPrincipal User currentUser
+    ) {
+        requireAdmin(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(orderService.getAllOrders(currentUser)));
+    }
+
+    @PatchMapping("/orders/{id}/complete")
+    public ResponseEntity<ApiResponse<OrderResponse>> completeOrder(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        requireAdmin(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(
+                orderService.completeOrder(id, currentUser),
+                "Order completed"
+        ));
     }
 
     private void requireAdmin(User user) {

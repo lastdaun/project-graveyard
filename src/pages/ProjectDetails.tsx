@@ -174,16 +174,6 @@ const ProjectDetails = () => {
                     <p className="text-muted-foreground whitespace-pre-wrap">{project.missingParts}</p>
                   </div>
                 )}
-                {(project.estimatedPriceLow || project.estimatedPriceSuggested) && (
-                  <div className="rounded-xl border bg-muted/30 p-4">
-                    <h2 className="mb-2 font-semibold">Giá gợi ý</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {project.estimatedPriceLow?.toLocaleString("vi-VN")} –{" "}
-                      {project.estimatedPriceSuggested?.toLocaleString("vi-VN")} –{" "}
-                      {project.estimatedPriceHigh?.toLocaleString("vi-VN")}₫
-                    </p>
-                  </div>
-                )}
               </>
             )}
 
@@ -229,7 +219,19 @@ const ProjectDetails = () => {
                 <Calendar className="h-4 w-4" />
                 <span>{project.createdAt ? new Date(project.createdAt).toLocaleDateString("vi-VN") : ""}</span>
               </div>
-              <p className="text-sm text-muted-foreground">Người đăng: {project.creator.name}</p>
+              <p className="text-sm text-muted-foreground">
+                Người đăng:{" "}
+                {project.creator.id != null ? (
+                  <Link
+                    to={`/profile/${project.creator.id}`}
+                    className="text-foreground font-medium hover:text-primary underline-offset-4 hover:underline"
+                  >
+                    {project.creator.name}
+                  </Link>
+                ) : (
+                  project.creator.name
+                )}
+              </p>
               <Button className="w-full" disabled={buying || !project.price} onClick={handleBuy}>
                 <DollarSign className="mr-2 h-4 w-4" />
                 {buying ? "Đang xử lý..." : `Mua project — ${(project.price ?? 0).toLocaleString("vi-VN")}₫`}

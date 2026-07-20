@@ -22,23 +22,25 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        widenProjectUrlColumns();
+        widenLongTextColumns();
         migrateLegacyListingTypes();
         seedAdmin();
     }
 
     /**
      * Hibernate ddl-auto=update does not widen existing varchar(255) columns.
-     * Long image/github URLs were failing inserts — force TEXT.
+     * Long URLs / bio were failing updates — force TEXT.
      */
-    private void widenProjectUrlColumns() {
+    private void widenLongTextColumns() {
         String[] statements = {
                 "ALTER TABLE projects ALTER COLUMN image_url TYPE text",
                 "ALTER TABLE projects ALTER COLUMN github_url TYPE text",
                 "ALTER TABLE projects ALTER COLUMN demo_url TYPE text",
                 "ALTER TABLE projects ALTER COLUMN rejection_reason TYPE text",
                 "ALTER TABLE projects ALTER COLUMN company_website TYPE text",
-                "ALTER TABLE project_images ALTER COLUMN image_url TYPE text"
+                "ALTER TABLE project_images ALTER COLUMN image_url TYPE text",
+                "ALTER TABLE users ALTER COLUMN avatar TYPE text",
+                "ALTER TABLE users ALTER COLUMN bio TYPE text"
         };
         for (String sql : statements) {
             try {
@@ -47,7 +49,7 @@ public class DataInitializer implements CommandLineRunner {
                 log.warn("Schema widen skipped [{}]: {}", sql, e.getMessage());
             }
         }
-        log.info("Ensured project URL columns allow long values (TEXT)");
+        log.info("Ensured long text columns allow large values (TEXT)");
     }
 
     /** Old enum values break loading projects by reviewStatus */

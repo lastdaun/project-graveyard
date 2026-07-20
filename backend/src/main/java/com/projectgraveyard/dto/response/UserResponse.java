@@ -26,6 +26,10 @@ public class UserResponse {
     private AccountType accountType;
     private boolean verified;
     private List<String> skills;
+    private Long projectsPosted;
+    private Long projectsApproved;
+    private Long purchaseOrders;
+    private Long salesOrders;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

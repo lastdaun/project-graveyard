@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { MapPin, Loader2, Trash2, Eye, CreditCard } from "lucide-react";
+import { Loader2, Trash2, Eye, CreditCard, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
@@ -83,6 +89,20 @@ const Profile = () => {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingListings, setLoadingListings] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    avatar: "",
+    bio: "",
+    skills: "",
+  });
+
+  useEffect(() => {
+    setAvatarBroken(false);
+  }, [profileUser?.avatar]);
 
   useEffect(() => {
     if (isOwnProfile && !isAuthenticated()) {
@@ -168,6 +188,61 @@ const Profile = () => {
     setSearchParams(tab === "profile" ? {} : { tab });
   };
 
+  const openEdit = () => {
+    if (!profileUser) return;
+    setEditForm({
+      fullName: profileUser.fullName ?? "",
+      avatar: profileUser.avatar ?? "",
+      bio: profileUser.bio ?? "",
+      skills: (profileUser.skills ?? []).join(", "),
+    });
+    setEditOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editForm.fullName.trim()) {
+      toast.error("Tên không được trống");
+      return;
+    }
+    setSaving(true);
+    try {
+      const skills = editForm.skills
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const res = await apiFetch("/api/users/me", {
+        method: "PUT",
+        body: JSON.stringify({
+          fullName: editForm.fullName.trim(),
+          avatar: editForm.avatar.trim() || null,
+          bio: editForm.bio.trim(),
+          skills,
+        }),
+      });
+      const body: ApiResponse<ApiUser> = await res.json();
+      if (!res.ok) throw new Error(body?.message || "Cập nhật thất bại");
+      setProfileUser(body.data);
+      const stored = getStoredUser();
+      if (stored && body.data) {
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            ...stored,
+            fullName: body.data.fullName,
+            email: body.data.email,
+            role: body.data.role,
+          })
+        );
+      }
+      toast.success("Đã cập nhật hồ sơ");
+      setEditOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi cập nhật");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Xoá project này?")) return;
     try {
@@ -175,6 +250,19 @@ const Profile = () => {
       if (!res.ok) throw new Error("Xoá thất bại");
       toast.success("Đã xoá");
       setListings((prev) => prev.filter((p) => p.id !== id));
+      setProfileUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              projectsPosted: Math.max(0, (prev.projectsPosted ?? 1) - 1),
+              projectsApproved:
+                prev.projectsApproved != null &&
+                listings.find((p) => p.id === id)?.reviewStatus === "APPROVED"
+                  ? Math.max(0, prev.projectsApproved - 1)
+                  : prev.projectsApproved,
+            }
+          : prev
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lỗi xoá");
     }
@@ -202,6 +290,13 @@ const Profile = () => {
     .substring(0, 2)
     .toUpperCase();
 
+  const stats = [
+    { label: "Project đã đăng", value: profileUser?.projectsPosted ?? 0 },
+    { label: "Đã được duyệt", value: profileUser?.projectsApproved ?? 0 },
+    { label: "Đơn mua", value: profileUser?.purchaseOrders ?? 0 },
+    { label: "Đơn bán", value: profileUser?.salesOrders ?? 0 },
+  ];
+
   if (loadingProfile) {
     return (
       <div className="min-h-screen">
@@ -217,24 +312,67 @@ const Profile = () => {
     <div className="min-h-screen">
       <Navbar />
       <div className="container max-w-4xl py-10">
-        <div className="mb-8 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">
-            {userInitials}
-          </div>
-          <div className="flex-1">
-            <h1 className="font-display text-2xl font-bold">{displayName}</h1>
-            <p className="text-muted-foreground">{profileUser?.email}</p>
-            {profileUser?.location && (
-              <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" /> {profileUser.location}
+        <div className="mb-8 rounded-2xl border bg-card p-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+            {profileUser?.avatar && !avatarBroken ? (
+              <img
+                src={profileUser.avatar}
+                alt={displayName}
+                className="h-24 w-24 shrink-0 rounded-full object-cover border"
+                onError={() => setAvatarBroken(true)}
+              />
+            ) : (
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">
+                {userInitials}
+              </div>
+            )}
+
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-display text-2xl font-bold">{displayName}</h1>
+                <Badge variant="secondary">{profileUser?.role ?? "USER"}</Badge>
+              </div>
+              <p className="text-muted-foreground break-all">{profileUser?.email}</p>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Bio: </span>
+                {profileUser?.bio?.trim() || "Chưa có bio."}
+              </p>
+              <div>
+                <p className="text-sm font-medium mb-2">Kỹ năng / Tech stack</p>
+                {(profileUser?.skills?.length ?? 0) > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {profileUser!.skills!.map((skill) => (
+                      <Badge key={skill} variant="outline">{skill}</Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Chưa cập nhật kỹ năng.</p>
+                )}
+              </div>
+            </div>
+
+            {isOwnProfile && (
+              <div className="flex flex-col gap-2 sm:items-stretch">
+                <Button variant="outline" size="sm" onClick={openEdit}>
+                  <Pencil className="h-4 w-4 mr-1" /> Chỉnh sửa hồ sơ
+                </Button>
+                <Link to="/post">
+                  <Button size="sm" className="w-full">
+                    <Plus className="h-4 w-4 mr-1" /> Đăng project
+                  </Button>
+                </Link>
               </div>
             )}
           </div>
-          {isOwnProfile && (
-            <Link to="/post">
-              <Button size="sm">Đăng project</Button>
-            </Link>
-          )}
+
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {stats.map((s) => (
+              <div key={s.label} className="rounded-xl border bg-muted/30 px-3 py-3 text-center">
+                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setTab}>
@@ -247,18 +385,38 @@ const Profile = () => {
           </TabsList>
 
           <TabsContent value="profile" className="space-y-4">
-            <div>
-              <h2 className="mb-2 font-display text-lg font-semibold">Giới thiệu</h2>
-              <p className="text-sm text-muted-foreground">{profileUser?.bio || "Chưa có bio."}</p>
+            <div className="rounded-xl border p-5 space-y-3 text-sm">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <p><span className="text-muted-foreground">Tên:</span> {displayName}</p>
+                <p><span className="text-muted-foreground">Email:</span> {profileUser?.email}</p>
+                <p><span className="text-muted-foreground">Role:</span> {profileUser?.role ?? "USER"}</p>
+                <p>
+                  <span className="text-muted-foreground">Project đã đăng / duyệt:</span>{" "}
+                  {profileUser?.projectsPosted ?? 0} / {profileUser?.projectsApproved ?? 0}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Bio</p>
+                <p>{profileUser?.bio?.trim() || "Chưa có bio."}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-2">Kỹ năng / Tech stack</p>
+                {(profileUser?.skills?.length ?? 0) > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {profileUser!.skills!.map((skill) => (
+                      <Badge key={skill} variant="outline">{skill}</Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">Chưa cập nhật.</p>
+                )}
+              </div>
+              {!isOwnProfile && (
+                <p className="text-muted-foreground pt-2">
+                  Tab tin đăng chỉ hiển thị project đã được Admin duyệt.
+                </p>
+              )}
             </div>
-            {profileUser?.university && (
-              <p className="text-sm text-muted-foreground">Trường: {profileUser.university}</p>
-            )}
-            {!isOwnProfile && (
-              <p className="text-sm text-muted-foreground">
-                Chỉ hiển thị project đã được Admin duyệt.
-              </p>
-            )}
           </TabsContent>
 
           <TabsContent value="listings">
@@ -374,6 +532,64 @@ const Profile = () => {
           )}
         </Tabs>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa hồ sơ</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Tên</Label>
+              <Input
+                id="fullName"
+                value={editForm.fullName}
+                onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="avatar">Avatar URL</Label>
+              <Input
+                id="avatar"
+                placeholder="https://... (link ảnh trực tiếp)"
+                value={editForm.avatar}
+                onChange={(e) => setEditForm((f) => ({ ...f, avatar: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Phải là link file ảnh trực tiếp (thường kết thúc bằng .jpg/.png/.webp/.svg),
+                không dùng link trang Vecteezy/Google. Ví dụ:{" "}
+                <code className="text-[11px]">https://api.dicebear.com/7.x/avataaars/svg?seed=Tai</code>
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                rows={3}
+                value={editForm.bio}
+                onChange={(e) => setEditForm((f) => ({ ...f, bio: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="skills">Kỹ năng / Tech stack</Label>
+              <Input
+                id="skills"
+                placeholder="React, Spring Boot, PostgreSQL"
+                value={editForm.skills}
+                onChange={(e) => setEditForm((f) => ({ ...f, skills: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">Tách bằng dấu phẩy</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Huỷ</Button>
+            <Button onClick={handleSaveProfile} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Lưu"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );

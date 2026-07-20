@@ -20,6 +20,7 @@ export interface Project {
   skillsNeeded: string[];
   techStack: string[];
   creator: {
+    id?: number;
     name: string;
     avatar: string;
   };

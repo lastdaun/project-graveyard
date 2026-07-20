@@ -72,6 +72,7 @@ export function adaptApiProject(p: ApiProject): Project {
     skillsNeeded: p.skillsNeeded ?? [],
     techStack: p.techStack ?? [],
     creator: {
+      id: p.creator?.id,
       name: p.creator?.fullName ?? "Unknown",
       avatar: p.creator?.avatar || getAvatarInitials(p.creator?.fullName ?? "U"),
     },

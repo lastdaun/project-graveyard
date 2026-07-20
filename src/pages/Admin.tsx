@@ -1,26 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Clock, CheckCircle, XCircle, Wallet, Plus, ExternalLink, Loader2, Shield,
+  LayoutDashboard, Building2, Users, TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  ChartContainer, ChartTooltip, ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Bar, BarChart, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { apiFetch, adaptApiProject, isAdmin, isAuthenticated } from "@/lib/api";
 import type { ApiOrder, ApiProject, ApiResponse } from "@/types/api";
 import type { Project } from "@/data/mockData";
 
-type Section = "pending" | "approved" | "rejected" | "orders";
+type Section = "overview" | "pending" | "approved" | "rejected" | "orders";
+
+const reviewChartConfig = {
+  pending: { label: "Chờ duyệt", color: "hsl(38 92% 50%)" },
+  approved: { label: "Đã duyệt", color: "hsl(142 71% 45%)" },
+  rejected: { label: "Từ chối", color: "hsl(0 72% 51%)" },
+};
+
+const listingChartConfig = {
+  company: { label: "Công ty", color: "hsl(221 83% 53%)" },
+  community: { label: "Cộng đồng", color: "hsl(262 83% 58%)" },
+};
 
 const Admin = () => {
   const navigate = useNavigate();
-  const [section, setSection] = useState<Section>("pending");
+  const [section, setSection] = useState<Section>("overview");
   const [pending, setPending] = useState<Project[]>([]);
   const [approved, setApproved] = useState<Project[]>([]);
   const [rejected, setRejected] = useState<Project[]>([]);
@@ -82,6 +97,38 @@ const Admin = () => {
   useEffect(() => {
     if (isAuthenticated() && isAdmin()) load();
   }, []);
+
+  const stats = useMemo(() => {
+    const companyCount = approved.filter((p) => p.listingType === "COMPANY_PROJECT").length;
+    const communityCount = approved.filter((p) => p.listingType !== "COMPANY_PROJECT").length;
+    const paidOrders = orders.filter((o) =>
+      ["PAID", "PROCESSING_HANDOVER", "COMPLETED"].includes(o.status)
+    );
+    const revenue = paidOrders.reduce((sum, o) => sum + (o.amount ?? 0), 0);
+    return {
+      companyCount,
+      communityCount,
+      revenue,
+      totalProjects: pending.length + approved.length + rejected.length,
+    };
+  }, [pending, approved, rejected, orders]);
+
+  const reviewChartData = useMemo(
+    () => [
+      { name: "Chờ duyệt", key: "pending", value: pending.length, fill: "var(--color-pending)" },
+      { name: "Đã duyệt", key: "approved", value: approved.length, fill: "var(--color-approved)" },
+      { name: "Từ chối", key: "rejected", value: rejected.length, fill: "var(--color-rejected)" },
+    ],
+    [pending.length, approved.length, rejected.length]
+  );
+
+  const listingChartData = useMemo(
+    () => [
+      { name: "Công ty", key: "company", value: stats.companyCount, fill: "var(--color-company)" },
+      { name: "Cộng đồng", key: "community", value: stats.communityCount, fill: "var(--color-community)" },
+    ],
+    [stats.companyCount, stats.communityCount]
+  );
 
   const openDetail = async (id: string) => {
     try {
@@ -147,6 +194,7 @@ const Admin = () => {
   };
 
   const sidebar = [
+    { id: "overview" as const, label: "Dashboard", icon: LayoutDashboard, count: null as number | null },
     { id: "pending" as const, label: "Chờ duyệt", icon: Clock, count: pending.length },
     { id: "approved" as const, label: "Đã duyệt", icon: CheckCircle, count: approved.length },
     { id: "rejected" as const, label: "Từ chối", icon: XCircle, count: rejected.length },
@@ -157,6 +205,171 @@ const Admin = () => {
     section === "pending" ? pending :
     section === "approved" ? approved :
     section === "rejected" ? rejected : [];
+
+  const renderOverview = () => (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Tổng quan hệ thống Project Graveyard</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => setSection("pending")}
+          className="rounded-xl border bg-card p-4 text-left hover:border-primary/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Chờ duyệt</span>
+            <Clock className="h-4 w-4 text-amber-500" />
+          </div>
+          <p className="text-3xl font-bold">{pending.length}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSection("approved")}
+          className="rounded-xl border bg-card p-4 text-left hover:border-primary/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Đã duyệt</span>
+            <CheckCircle className="h-4 w-4 text-emerald-500" />
+          </div>
+          <p className="text-3xl font-bold">{approved.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {stats.companyCount} công ty · {stats.communityCount} cộng đồng
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSection("rejected")}
+          className="rounded-xl border bg-card p-4 text-left hover:border-primary/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Từ chối</span>
+            <XCircle className="h-4 w-4 text-red-500" />
+          </div>
+          <p className="text-3xl font-bold">{rejected.length}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSection("orders")}
+          className="rounded-xl border bg-card p-4 text-left hover:border-primary/40 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Doanh thu (đã thanh toán)</span>
+            <TrendingUp className="h-4 w-4 text-primary" />
+          </div>
+          <p className="text-2xl font-bold">{stats.revenue.toLocaleString("vi-VN")}₫</p>
+          <p className="text-xs text-muted-foreground mt-1">{orders.length} orders</p>
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+          <Building2 className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-xs text-muted-foreground">Project công ty</p>
+            <p className="text-xl font-semibold">{stats.companyCount}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+          <Users className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-xs text-muted-foreground">Project cộng đồng (public)</p>
+            <p className="text-xl font-semibold">{stats.communityCount}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-semibold mb-4">Trạng thái duyệt</h2>
+          {reviewChartData.every((d) => d.value === 0) ? (
+            <p className="text-sm text-muted-foreground py-10 text-center">Chưa có dữ liệu</p>
+          ) : (
+            <ChartContainer config={reviewChartConfig} className="h-[220px] w-full">
+              <PieChart>
+                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                <Pie data={reviewChartData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80}>
+                  {reviewChartData.map((entry) => (
+                    <Cell key={entry.key} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ChartContainer>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-semibold mb-4">Project đã duyệt theo loại</h2>
+          {listingChartData.every((d) => d.value === 0) ? (
+            <p className="text-sm text-muted-foreground py-10 text-center">Chưa có dữ liệu</p>
+          ) : (
+            <ChartContainer config={listingChartConfig} className="h-[220px] w-full">
+              <BarChart data={listingChartData}>
+                <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="value" radius={6}>
+                  {listingChartData.map((entry) => (
+                    <Cell key={entry.key} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border bg-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">Chờ duyệt gần đây</h2>
+            <Button size="sm" variant="ghost" onClick={() => setSection("pending")}>Xem tất cả</Button>
+          </div>
+          {pending.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Không có project chờ duyệt</p>
+          ) : (
+            <div className="space-y-2">
+              {pending.slice(0, 5).map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{p.title}</p>
+                    <p className="text-xs text-muted-foreground">{p.creator.name}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => openDetail(p.id)}>Xem</Button>
+                    <Button size="sm" onClick={() => handleApprove(p.id)}>Duyệt</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">Orders gần đây</h2>
+            <Button size="sm" variant="ghost" onClick={() => setSection("orders")}>Xem tất cả</Button>
+          </div>
+          {orders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Chưa có order</p>
+          ) : (
+            <div className="space-y-2">
+              {orders.slice(0, 5).map((o) => (
+                <div key={o.id} className="rounded-lg border p-3">
+                  <p className="font-medium truncate">#{o.id} · {o.project?.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {o.buyer?.fullName} · {(o.amount ?? 0).toLocaleString("vi-VN")}₫ · {o.status}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -186,7 +399,9 @@ const Admin = () => {
             >
               <s.icon className="h-4 w-4" />
               <span className="flex-1">{s.label}</span>
-              <Badge variant="secondary" className="text-xs">{s.count}</Badge>
+              {s.count != null && (
+                <Badge variant="secondary" className="text-xs">{s.count}</Badge>
+              )}
             </button>
           ))}
         </aside>
@@ -196,6 +411,8 @@ const Admin = () => {
             <div className="flex justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
+          ) : section === "overview" ? (
+            renderOverview()
           ) : section === "orders" ? (
             <div className="space-y-3">
               <h1 className="font-display text-2xl font-bold mb-4">Orders</h1>

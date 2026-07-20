@@ -29,6 +29,11 @@ export interface ApiUser {
   location?: string;
   university?: string;
   role: ApiRole | string;
+  skills?: string[];
+  projectsPosted?: number;
+  projectsApproved?: number;
+  purchaseOrders?: number;
+  salesOrders?: number;
 }
 
 export type ApiCompletionStatus = "INCOMPLETE" | "COMPLETED";

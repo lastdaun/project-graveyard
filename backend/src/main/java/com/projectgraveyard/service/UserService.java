@@ -4,7 +4,10 @@ import com.projectgraveyard.dto.request.UpdateProfileRequest;
 import com.projectgraveyard.dto.response.UserResponse;
 import com.projectgraveyard.entity.User;
 import com.projectgraveyard.enums.ErrorCode;
+import com.projectgraveyard.enums.ReviewStatus;
 import com.projectgraveyard.exception.AppException;
+import com.projectgraveyard.repository.OrderRepository;
+import com.projectgraveyard.repository.ProjectRepository;
 import com.projectgraveyard.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,12 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
+    private final OrderRepository orderRepository;
 
     public UserResponse getUserProfile(Long id) {
         log.info("Fetching profile for user ID: {}", id);
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "User not found with id: " + id));
-        return mapToUserResponse(user);
+        return mapToUserResponse(user, true);
     }
 
     @Transactional
@@ -52,12 +57,17 @@ public class UserService {
 
         user = userRepository.save(user);
         log.info("User profile updated successfully. ID: {}", user.getId());
-        return mapToUserResponse(user);
+        return mapToUserResponse(user, true);
     }
 
     public UserResponse mapToUserResponse(User user) {
+        return mapToUserResponse(user, false);
+    }
+
+    public UserResponse mapToUserResponse(User user, boolean includeStats) {
         if (user == null) return null;
-        return UserResponse.builder()
+
+        UserResponse.UserResponseBuilder builder = UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
@@ -70,7 +80,17 @@ public class UserService {
                 .verified(user.isVerified())
                 .skills(user.getSkills())
                 .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
-                .build();
+                .updatedAt(user.getUpdatedAt());
+
+        if (includeStats) {
+            builder
+                    .projectsPosted(projectRepository.countByCreatorId(user.getId()))
+                    .projectsApproved(projectRepository.countByCreatorIdAndReviewStatus(
+                            user.getId(), ReviewStatus.APPROVED))
+                    .purchaseOrders(orderRepository.countByBuyerId(user.getId()))
+                    .salesOrders(orderRepository.countByProjectCreatorId(user.getId()));
+        }
+
+        return builder.build();
     }
 }

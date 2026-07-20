@@ -23,3 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 target/
+
+# Backend build
+backend/target/
+target/
+
+# Frontend build
+node_modules/
+dist/
+
+# Env
+.env
+.env.local

@@ -31,8 +31,10 @@ public class User {
     @Column(nullable = false)
     private String fullName;
 
+    @Column(columnDefinition = "text")
     private String avatar;
 
+    @Column(columnDefinition = "text")
     private String bio;
 
     private String location;

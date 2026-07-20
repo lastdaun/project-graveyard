@@ -37,6 +37,10 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     List<Project> findByCreatorId(Long creatorId);
 
+    long countByCreatorId(Long creatorId);
+
+    long countByCreatorIdAndReviewStatus(Long creatorId, ReviewStatus reviewStatus);
+
     List<Project> findByReviewStatusOrderByCreatedAtDesc(ReviewStatus reviewStatus);
 
     @Query("SELECT p FROM Project p WHERE " +
