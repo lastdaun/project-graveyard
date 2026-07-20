@@ -64,12 +64,8 @@ const ProjectDetails = () => {
       if (!createRes.ok) throw new Error(createBody?.message || "Tạo đơn thất bại");
 
       const orderId = createBody.data.id;
-      const payRes = await apiFetch(`/api/orders/${orderId}/mock-pay`, { method: "PATCH" });
-      const payBody = await payRes.json();
-      if (!payRes.ok) throw new Error(payBody?.message || "Thanh toán thất bại");
-
-      toast.success("Mua thành công! Xem tại Đơn mua.");
-      navigate("/profile?tab=purchases");
+      toast.success("Tạo đơn hàng thành công!");
+      navigate(`/checkout/${orderId}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lỗi mua hàng");
     } finally {

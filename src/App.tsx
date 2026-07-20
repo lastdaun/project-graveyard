@@ -15,6 +15,7 @@ import AdminCompanyProject from "./pages/AdminCompanyProject";
 import Pricing from "./pages/Pricing";
 import Transactions from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
+import Checkout from "./pages/Checkout";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/register" element={<Navigate to="/login?mode=signup" replace />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/transactions" element={<Transactions />} />
+              <Route path="/checkout/:orderId" element={<Checkout />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/company-projects/new" element={<AdminCompanyProject />} />
               <Route path="*" element={<NotFound />} />

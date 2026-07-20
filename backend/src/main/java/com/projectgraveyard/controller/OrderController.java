@@ -39,6 +39,21 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(orderService.getMyPurchases(currentUser)));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<OrderResponse>> getOrderById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getOrderById(id, currentUser)));
+    }
+
+    @GetMapping("/my-sales")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getMySales(
+            @AuthenticationPrincipal User currentUser
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getMySales(currentUser)));
+    }
+
     @PatchMapping("/{id}/mock-pay")
     public ResponseEntity<ApiResponse<OrderResponse>> mockPay(
             @PathVariable Long id,

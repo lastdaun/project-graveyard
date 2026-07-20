@@ -2,12 +2,11 @@ package com.projectgraveyard.service;
 
 import com.projectgraveyard.dto.request.CreateOrderRequest;
 import com.projectgraveyard.dto.response.OrderResponse;
-import com.projectgraveyard.dto.response.ProjectResponse;
-import com.projectgraveyard.dto.response.UserResponse;
 import com.projectgraveyard.entity.Order;
 import com.projectgraveyard.entity.Project;
 import com.projectgraveyard.entity.User;
 import com.projectgraveyard.enums.ErrorCode;
+import com.projectgraveyard.enums.ListingType;
 import com.projectgraveyard.enums.OrderStatus;
 import com.projectgraveyard.enums.Role;
 import com.projectgraveyard.exception.AppException;
@@ -29,7 +28,6 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ProjectRepository projectRepository;
-    private final ProjectService projectService;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, User buyer) {
@@ -48,6 +46,18 @@ public class OrderService {
             throw new AppException(ErrorCode.ORDER_INVALID_STATUS);
         }
 
+        // Rule: for USER_INCOMPLETE_PROJECT, if already sold/paid/processing, block creation.
+        if (project.getListingType() == ListingType.USER_INCOMPLETE_PROJECT) {
+            List<OrderStatus> blocked = List.of(
+                    OrderStatus.PAID,
+                    OrderStatus.PROCESSING_HANDOVER,
+                    OrderStatus.COMPLETED
+            );
+            if (orderRepository.existsByProjectIdAndStatusIn(project.getId(), blocked)) {
+                throw new AppException(ErrorCode.ORDER_ALREADY_EXISTS);
+            }
+        }
+
         List<OrderStatus> active = List.of(
                 OrderStatus.PENDING_PAYMENT,
                 OrderStatus.PAID,
@@ -58,10 +68,27 @@ public class OrderService {
                     throw new AppException(ErrorCode.ORDER_ALREADY_EXISTS);
                 });
 
+        User seller = null;
+        long platformFee = 0;
+        long sellerAmount = 0;
+
+        if (project.getListingType() == ListingType.USER_INCOMPLETE_PROJECT) {
+            seller = project.getCreator();
+            platformFee = project.getPrice() * 5 / 100;
+            sellerAmount = project.getPrice() - platformFee;
+        } else if (project.getListingType() == ListingType.COMPANY_PROJECT) {
+            seller = null;
+            platformFee = 0;
+            sellerAmount = 0;
+        }
+
         Order order = Order.builder()
                 .buyer(buyer)
+                .seller(seller)
                 .project(project)
                 .amount(project.getPrice())
+                .platformFee(platformFee)
+                .sellerAmount(sellerAmount)
                 .status(OrderStatus.PENDING_PAYMENT)
                 .build();
 
@@ -72,6 +99,21 @@ public class OrderService {
 
     public List<OrderResponse> getMyPurchases(User buyer) {
         return orderRepository.findByBuyerIdOrderByCreatedAtDesc(buyer.getId()).stream()
+                .map(this::mapToOrderResponse)
+                .collect(Collectors.toList());
+    }
+
+    public OrderResponse getOrderById(Long orderId, User user) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        if (!order.getBuyer().getId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+        return mapToOrderResponse(order);
+    }
+
+    public List<OrderResponse> getMySales(User seller) {
+        return orderRepository.findBySellerIdOrderByCreatedAtDesc(seller.getId()).stream()
                 .map(this::mapToOrderResponse)
                 .collect(Collectors.toList());
     }
@@ -100,11 +142,6 @@ public class OrderService {
         order.setPaidAt(LocalDateTime.now());
         order = orderRepository.save(order);
 
-        Project project = order.getProject();
-        int sold = project.getSoldCount() == null ? 0 : project.getSoldCount();
-        project.setSoldCount(sold + 1);
-        projectRepository.save(project);
-
         log.info("Order {} mock-paid", orderId);
         return mapToOrderResponse(order);
     }
@@ -119,14 +156,17 @@ public class OrderService {
             throw new AppException(ErrorCode.ORDER_INVALID_STATUS);
         }
 
-        if (order.getStatus() == OrderStatus.PAID) {
-            order.setStatus(OrderStatus.PROCESSING_HANDOVER);
-            order = orderRepository.save(order);
-        }
-
         order.setStatus(OrderStatus.COMPLETED);
         order.setCompletedAt(LocalDateTime.now());
         order = orderRepository.save(order);
+
+        Project project = order.getProject();
+        if (project.getListingType() == ListingType.USER_INCOMPLETE_PROJECT) {
+            int sold = project.getSoldCount() == null ? 0 : project.getSoldCount();
+            project.setSoldCount(sold + 1);
+            projectRepository.save(project);
+        }
+
         log.info("Order {} completed by admin {}", orderId, admin.getEmail());
         return mapToOrderResponse(order);
     }
@@ -143,6 +183,23 @@ public class OrderService {
 
         order.setStatus(OrderStatus.PROCESSING_HANDOVER);
         order = orderRepository.save(order);
+        log.info("Order {} started handover by admin {}", orderId, admin.getEmail());
+        return mapToOrderResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse refundOrder(Long orderId, User admin) {
+        requireAdmin(admin);
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (order.getStatus() != OrderStatus.PAID && order.getStatus() != OrderStatus.PROCESSING_HANDOVER) {
+            throw new AppException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+
+        order.setStatus(OrderStatus.REFUNDED);
+        order = orderRepository.save(order);
+        log.info("Order {} refunded by admin {}", orderId, admin.getEmail());
         return mapToOrderResponse(order);
     }
 
@@ -153,31 +210,21 @@ public class OrderService {
     }
 
     private OrderResponse mapToOrderResponse(Order order) {
-        ProjectResponse project = projectService.mapToProjectResponse(order.getProject());
         return OrderResponse.builder()
                 .id(order.getId())
-                .buyer(mapToUserResponse(order.getBuyer()))
-                .project(project)
+                .projectId(order.getProject().getId())
+                .projectTitle(order.getProject().getTitle())
+                .buyerId(order.getBuyer().getId())
+                .buyerName(order.getBuyer().getFullName())
+                .sellerId(order.getSeller() != null ? order.getSeller().getId() : null)
+                .sellerName(order.getSeller() != null ? order.getSeller().getFullName() : null)
                 .amount(order.getAmount())
+                .platformFee(order.getPlatformFee())
+                .sellerAmount(order.getSellerAmount())
                 .status(order.getStatus())
+                .createdAt(order.getCreatedAt())
                 .paidAt(order.getPaidAt())
                 .completedAt(order.getCompletedAt())
-                .createdAt(order.getCreatedAt())
-                .updatedAt(order.getUpdatedAt())
-                .build();
-    }
-
-    private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .fullName(user.getFullName())
-                .avatar(user.getAvatar())
-                .role(user.getRole())
-                .accountType(user.getAccountType())
-                .verified(user.isVerified())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 }
