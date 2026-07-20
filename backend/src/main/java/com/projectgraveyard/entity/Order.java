@@ -24,11 +24,19 @@ public class Order {
     private User buyer;
 
     @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "seller_id")
+    private User seller;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
     @Column(nullable = false)
     private Long amount;
+
+    private Long platformFee;
+
+    private Long sellerAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

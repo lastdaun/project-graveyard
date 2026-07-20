@@ -4,12 +4,14 @@ import com.projectgraveyard.dto.request.CompanyProjectRequest;
 import com.projectgraveyard.dto.request.RejectRequest;
 import com.projectgraveyard.dto.response.AdminProjectResponse;
 import com.projectgraveyard.dto.response.ApiResponse;
+import com.projectgraveyard.dto.response.OrderResponse;
 import com.projectgraveyard.dto.response.ProjectResponse;
 import com.projectgraveyard.entity.User;
 import com.projectgraveyard.enums.ErrorCode;
 import com.projectgraveyard.enums.ReviewStatus;
 import com.projectgraveyard.enums.Role;
 import com.projectgraveyard.exception.AppException;
+import com.projectgraveyard.service.OrderService;
 import com.projectgraveyard.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.List;
 public class AdminController {
 
     private final ProjectService projectService;
+    private final OrderService orderService;
 
     @GetMapping("/projects/pending")
     public ResponseEntity<ApiResponse<List<AdminProjectResponse>>> getPendingProjects(
@@ -84,6 +87,50 @@ public class AdminController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Company project created"));
+    }
+
+    @GetMapping("/orders")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrders(
+            @AuthenticationPrincipal User currentUser
+    ) {
+        requireAdmin(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(orderService.getAllOrders(currentUser)));
+    }
+
+    @PatchMapping("/orders/{id}/process")
+    public ResponseEntity<ApiResponse<OrderResponse>> startHandover(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        requireAdmin(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(
+                orderService.startHandover(id, currentUser),
+                "Handover started"
+        ));
+    }
+
+    @PatchMapping("/orders/{id}/complete")
+    public ResponseEntity<ApiResponse<OrderResponse>> completeOrder(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        requireAdmin(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(
+                orderService.completeOrder(id, currentUser),
+                "Order completed successfully"
+        ));
+    }
+
+    @PatchMapping("/orders/{id}/refund")
+    public ResponseEntity<ApiResponse<OrderResponse>> refundOrder(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        requireAdmin(currentUser);
+        return ResponseEntity.ok(ApiResponse.success(
+                orderService.refundOrder(id, currentUser),
+                "Order refunded successfully"
+        ));
     }
 
     private void requireAdmin(User user) {
